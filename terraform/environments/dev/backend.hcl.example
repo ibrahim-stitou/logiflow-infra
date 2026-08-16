@@ -1,0 +1,12 @@
+# Copier en backend.hcl (jamais commité) une fois `terraform/bootstrap` appliqué, en reprenant
+# ses outputs :
+#   terraform -chdir=terraform/bootstrap output -raw state_bucket_name
+#   terraform -chdir=terraform/bootstrap output -raw lock_table_name
+#
+# Puis : terraform init -backend-config=backend.hcl
+
+bucket         = "logiflow-terraform-state-<account-id>"
+key            = "environments/dev/terraform.tfstate"
+region         = "eu-west-3"
+dynamodb_table = "logiflow-terraform-lock"
+encrypt        = true

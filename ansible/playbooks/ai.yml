@@ -1,0 +1,6 @@
+---
+- name: (Re)déployer uniquement le service IA
+  hosts: role_ai
+  become: true
+  roles:
+    - ai

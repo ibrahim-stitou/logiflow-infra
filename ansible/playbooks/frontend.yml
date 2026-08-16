@@ -1,0 +1,6 @@
+---
+- name: (Re)déployer uniquement le frontend
+  hosts: role_frontend
+  become: true
+  roles:
+    - frontend

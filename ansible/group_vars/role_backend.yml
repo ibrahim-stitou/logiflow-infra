@@ -1,0 +1,6 @@
+---
+service_name: backend
+docker_image: ghcr.io/ibrahim-stitou/logiflow-backend:latest
+postgres_image: ghcr.io/ibrahim-stitou/logiflow-postgres:latest
+container_port: 8080
+host_port: 8080

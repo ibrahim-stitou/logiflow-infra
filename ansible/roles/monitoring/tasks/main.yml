@@ -1,0 +1,46 @@
+---
+# node_exporter expose les métriques système (CPU/RAM/disque) sur 127.0.0.1:9100 uniquement — pas
+# de Prometheus central provisionné dans ce lot (aucun 4e serveur demandé). Point d'accroche prêt
+# pour brancher un Prometheus/Grafana centralisé plus tard : il suffira d'autoriser le port 9100
+# depuis le security group de ce futur serveur (voir docs/architecture.md).
+
+- name: Créer l'utilisateur système node_exporter
+  ansible.builtin.user:
+    name: node_exporter
+    system: true
+    shell: /usr/sbin/nologin
+    create_home: false
+
+- name: Définir l'URL et le chemin d'extraction de node_exporter
+  ansible.builtin.set_fact:
+    monitoring_node_exporter_dir: "node_exporter-{{ monitoring_node_exporter_version }}.linux-amd64"
+
+- name: Télécharger node_exporter
+  ansible.builtin.unarchive:
+    src: "https://github.com/prometheus/node_exporter/releases/download/v{{ monitoring_node_exporter_version }}/{{ monitoring_node_exporter_dir }}.tar.gz" # noqa yaml[line-length]
+    dest: /tmp
+    remote_src: true
+    creates: "/tmp/{{ monitoring_node_exporter_dir }}/node_exporter"
+
+- name: Installer le binaire node_exporter
+  ansible.builtin.copy:
+    src: "/tmp/{{ monitoring_node_exporter_dir }}/node_exporter"
+    dest: /usr/local/bin/node_exporter
+    owner: node_exporter
+    group: node_exporter
+    mode: "0755"
+    remote_src: true
+
+- name: Déployer le service systemd node_exporter
+  ansible.builtin.template:
+    src: node_exporter.service.j2
+    dest: /etc/systemd/system/node_exporter.service
+    mode: "0644"
+  notify: Recharger systemd et redémarrer node_exporter
+
+- name: Démarrer et activer node_exporter
+  ansible.builtin.systemd:
+    name: node_exporter
+    state: started
+    enabled: true
+    daemon_reload: true

@@ -1,0 +1,28 @@
+name: logiflow-ai
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: logiflow-ollama
+    restart: unless-stopped
+    volumes:
+      - ollama-data:/root/.ollama
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  ai:
+    image: {{ docker_image }}
+    restart: unless-stopped
+    depends_on:
+      - ollama
+    env_file: .env
+    ports:
+      - "{{ host_port }}:{{ container_port }}"
+
+volumes:
+  ollama-data:

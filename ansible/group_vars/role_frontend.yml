@@ -1,0 +1,5 @@
+---
+service_name: frontend
+docker_image: ghcr.io/ibrahim-stitou/logiflow-frontend:latest
+container_port: 80
+host_port: 80

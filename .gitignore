@@ -1,0 +1,31 @@
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfplan
+tfplan
+crash.log
+crash.*.log
+*.tfvars
+!*.tfvars.example
+backend.hcl
+!backend.hcl.example
+# .terraform.lock.hcl est volontairement COMMITÉ (versions de provider reproductibles entre
+# postes/CI), contrairement à une pratique fréquente mais déconseillée par HashiCorp.
+
+# Ansible
+*.retry
+ansible/inventory/*.ini
+!ansible/inventory/aws_ec2.yml
+
+# Secrets / environnement
+.env
+*.pem
+*.pub
+!terraform/environments/dev/templates/*.tpl
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

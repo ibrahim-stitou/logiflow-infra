@@ -1,0 +1,15 @@
+[Unit]
+Description=Prometheus Node Exporter
+After=network.target
+
+[Service]
+User=node_exporter
+Group=node_exporter
+Type=simple
+# 127.0.0.1 uniquement : pas d'exposition réseau tant qu'aucun security group ne l'autorise
+# explicitement pour un futur serveur Prometheus (voir docs/architecture.md).
+ExecStart=/usr/local/bin/node_exporter --web.listen-address=127.0.0.1:9100
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

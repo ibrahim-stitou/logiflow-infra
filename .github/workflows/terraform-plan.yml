@@ -1,0 +1,79 @@
+name: Terraform Plan
+
+# Sur chaque PR touchant terraform/ : fmt, validate, lint (tflint) et scan de sécurité IaC
+# (tfsec) avant même de tenter un plan — aucune anomalie de sécurité connue ne doit atteindre
+# `terraform apply`. Authentification AWS par OIDC (voir terraform/bootstrap/github-oidc.tf) :
+# aucune clé d'accès stockée dans ce dépôt.
+
+on:
+  pull_request:
+    paths:
+      - "terraform/**"
+      - ".github/workflows/terraform-*.yml"
+
+permissions:
+  contents: read
+  id-token: write
+  pull-requests: write
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: terraform/environments/dev
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.15.8"
+
+      - name: Format (vérification uniquement)
+        run: terraform fmt -check -recursive
+        working-directory: terraform
+
+      - name: Init
+        run: terraform init -backend-config=backend.hcl
+        env:
+          AWS_REGION: eu-west-3
+
+      - name: Validate
+        run: terraform validate
+
+      - name: tflint
+        uses: terraform-linters/setup-tflint@v4
+      - run: tflint --init && tflint --recursive
+        working-directory: terraform
+
+      - name: Scan de sécurité IaC (tfsec)
+        uses: aquasecurity/tfsec-action@v1.0.3
+        with:
+          working_directory: terraform
+
+      - name: Authentification AWS (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_TERRAFORM_ROLE_ARN }}
+          aws-region: eu-west-3
+
+      - name: Plan
+        id: plan
+        run: terraform plan -no-color -out=tfplan
+        continue-on-error: true
+
+      - name: Publier le plan en commentaire de PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const output = `#### Terraform Plan\n\`\`\`\n${{ steps.plan.outputs.stdout }}\n\`\`\``;
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output.slice(0, 65000),
+            });
+
+      - name: Échouer le job si le plan a échoué
+        if: steps.plan.outcome == 'failure'
+        run: exit 1

@@ -1,0 +1,20 @@
+---
+ansible_user: ubuntu
+ansible_ssh_common_args: >-
+  -o ProxyCommand="{{ playbook_dir }}/../../scripts/ssm-proxy.sh %h %p"
+  -o StrictHostKeyChecking=no
+  -o UserKnownHostsFile=/dev/null
+
+project_name: logiflow
+environment_name: dev
+aws_region: eu-west-3
+vpc_cidr: 10.0.0.0/16 # doit rester aligné avec terraform/modules/network (var.vpc_cidr)
+
+# Secrets (mot de passe DB, clé API interne) : lus directement depuis AWS Secrets Manager au
+# moment du déploiement via le lookup plugin amazon.aws.secretsmanager_secret — jamais stockés
+# dans ce dépôt, même chiffrés (voir roles/backend, roles/ai). Les noms correspondent à ceux créés
+# par terraform/environments/dev (aws_secretsmanager_secret.*.name).
+secret_db_password_name: "{{ project_name }}/{{ environment_name }}/db-password"
+secret_internal_api_key_name: "{{ project_name }}/{{ environment_name }}/internal-api-key"
+
+docker_compose_dir: /opt/logiflow

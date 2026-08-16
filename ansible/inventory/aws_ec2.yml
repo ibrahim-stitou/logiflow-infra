@@ -1,0 +1,20 @@
+# Inventaire dynamique : interroge directement l'API EC2 (tags posés par Terraform), aucune IP à
+# maintenir à la main. Nécessite la collection amazon.aws (voir requirements.yml) et des
+# identifiants AWS valides dans l'environnement (les mêmes que pour Terraform).
+plugin: amazon.aws.aws_ec2
+regions:
+  - eu-west-3
+filters:
+  tag:Project: logiflow
+  tag:Environment: dev
+  instance-state-name: running
+hostnames:
+  - tag:Name
+compose:
+  # ansible_host = ID d'instance (et non l'IP) : requis par le document SSM AWS-StartSSHSession
+  # utilisé dans scripts/ssm-proxy.sh, y compris pour le frontend qui a pourtant une IP publique —
+  # aucune instance de ce projet n'a le port 22 ouvert, l'accès admin passe uniformément par SSM.
+  ansible_host: instance_id
+keyed_groups:
+  - key: tags.Role
+    prefix: role

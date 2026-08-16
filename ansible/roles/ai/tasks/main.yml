@@ -1,0 +1,97 @@
+---
+- name: Installer les outils de détection de pilotes Ubuntu
+  ansible.builtin.apt:
+    name: ubuntu-drivers-common
+    state: present
+    update_cache: true
+
+- name: Vérifier si un pilote NVIDIA est déjà chargé
+  ansible.builtin.command: nvidia-smi
+  register: ai_nvidia_smi
+  failed_when: false
+  changed_when: false
+
+- name: Installer automatiquement le pilote NVIDIA recommandé
+  ansible.builtin.command: ubuntu-drivers autoinstall
+  when: ai_nvidia_smi.rc != 0
+  register: ai_driver_install
+  changed_when: "'Installing' in ai_driver_install.stdout"
+  notify: Redémarrer l'instance (pilote GPU)
+
+- name: Forcer le redémarrage immédiat si le pilote GPU vient d'être installé
+  ansible.builtin.meta: flush_handlers
+
+- name: Ajouter le dépôt APT nvidia-container-toolkit
+  ansible.builtin.deb822_repository:
+    name: nvidia-container-toolkit
+    types: deb
+    uris: https://nvidia.github.io/libnvidia-container/stable/deb/$(ARCH)
+    suites: /
+    signed_by: https://nvidia.github.io/libnvidia-container/gpgkey
+
+- name: Installer nvidia-container-toolkit
+  ansible.builtin.apt:
+    name: nvidia-container-toolkit
+    state: present
+    update_cache: true
+
+- name: Configurer le runtime Docker pour exposer le GPU aux conteneurs
+  ansible.builtin.command: nvidia-ctk runtime configure --runtime=docker
+  register: ai_ctk_configure
+  changed_when: "'unchanged' not in ai_ctk_configure.stdout"
+  notify: Redémarrer Docker
+
+- name: Forcer le redémarrage de Docker si le runtime GPU a été (re)configuré
+  ansible.builtin.meta: flush_handlers
+
+- name: Lire la clé API interne depuis AWS Secrets Manager
+  ansible.builtin.set_fact:
+    ai_internal_api_key: "{{ lookup('amazon.aws.secretsmanager_secret', secret_internal_api_key_name, region=aws_region) }}"
+  no_log: true
+
+- name: Déployer le fichier .env (jamais commité, généré à chaque run)
+  ansible.builtin.template:
+    src: env.j2
+    dest: "{{ docker_compose_dir }}/.env"
+    owner: ubuntu
+    group: docker
+    mode: "0640"
+  no_log: true
+
+- name: Déployer le docker-compose.yml du service IA
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ docker_compose_dir }}/docker-compose.yml"
+    owner: ubuntu
+    group: docker
+    mode: "0640"
+
+- name: Démarrer Ollama et le service Flask
+  community.docker.docker_compose_v2:
+    project_src: "{{ docker_compose_dir }}"
+    pull: always
+    state: present
+
+- name: Attendre qu'Ollama réponde
+  ansible.builtin.uri:
+    url: "http://localhost:11434"
+    status_code: 200
+  register: ai_ollama_health
+  until: ai_ollama_health.status == 200
+  retries: 12
+  delay: 10
+
+- name: Télécharger le modèle Ollama configuré (peut prendre plusieurs minutes)
+  community.docker.docker_container_exec:
+    container: logiflow-ollama
+    command: "ollama pull {{ ollama_model }}"
+  changed_when: true
+
+- name: Attendre que l'API Flask réponde sur /health
+  ansible.builtin.uri:
+    url: "http://localhost:{{ host_port }}/health"
+    status_code: 200
+  register: ai_flask_health
+  until: ai_flask_health.status == 200
+  retries: 12
+  delay: 10
