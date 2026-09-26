@@ -70,6 +70,7 @@ gratuit).
 | Keycloak | Image **optimisée** (`kc.sh build`) ; démarrage `--optimized` en mode production, derrière proxy (`xforwarded`) |
 | HTTP | Caddy pose `Strict-Transport-Security`, `X-Content-Type-Options` et `Referrer-Policy`, et supprime `Server`. nginx (frontend) ajoute `X-Frame-Options: DENY`. Keycloak gère ses propres en-têtes (CSP, cadres) |
 | S3 | Accès public bloqué, chiffrement, versionnage (état), cycle de vie |
+| DNS | Zone Route 53 versionnée dans Terraform ; enregistrement **CAA** limitant l'émission de certificats à Let's Encrypt et Sectigo ; zone protégée contre la suppression accidentelle |
 | Réseau | Aucun port d'administration ; flux internes uniquement sur le réseau Docker |
 
 ## 7.6 Sauvegarde et continuité
@@ -95,7 +96,7 @@ correction à apporter en contexte réel :
 | Rôle Terraform CI large sur EC2, SSM et S3 | Simplicité ; limité par la confiance OIDC et l'approbation manuelle | Permissions au niveau des ressources, *permission boundary* |
 | Clé KMS **gérée par AWS** | Gratuit | Clé KMS client avec rotation (1 $/mois) |
 | Journaux **locaux** (Docker) | Pas de coût CloudWatch Logs | Centralisation (CloudWatch Logs ou Loki) et alertes |
-| **sslip.io** | Pas d'achat de domaine | Domaine propre, Route 53, CAA |
+| Pas de **DNSSEC** sur la zone | Configuration plus lourde (clé KMS dédiée, DS chez Namecheap) | DNSSEC Route 53 + enregistrement DS chez le registraire |
 | Swagger UI **public** | Démonstration de l'API | `API_DOCS_ENABLED=false` |
 
 Les alertes Trivy correspondant à ces écarts sont donc attendues : le job est informatif.

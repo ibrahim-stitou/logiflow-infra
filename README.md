@@ -28,7 +28,7 @@ graph LR
 | Élément | Choix |
 |---|---|
 | Hébergement | **1 instance EC2** (`eu-west-3`, Paris) qui exécute toute la stack en conteneurs |
-| Accès public | **HTTPS uniquement** (Caddy + Let's Encrypt), domaines gratuits **sslip.io** ou votre domaine |
+| Accès public | **HTTPS uniquement** (Caddy + Let's Encrypt) sur **votre domaine** (Namecheap, DNS géré par **Route 53**) : `app.`, `auth.`, racine et `www` redirigés ; sinon domaines gratuits sslip.io |
 | Administration | **AWS SSM** : aucun port SSH ouvert, aucune clé SSH |
 | Secrets | **SSM Parameter Store**, générés par Terraform, chiffrés, jamais dans Git |
 | Identité | **Keycloak** (OIDC, PKCE, MFA en option) |
@@ -47,7 +47,8 @@ Depuis WSL, Linux ou macOS, avec les [prérequis](docs/02-prerequis.md) install�
 
 ```bash
 make outils                     # vérifie terraform, aws, ansible, plugin SSM, jq
-make bootstrap                  # une seule fois : état Terraform distant + rôles GitHub
+make bootstrap                  # une seule fois : état distant, rôles GitHub, zone Route 53
+#   → déclarer les 4 serveurs de noms dans Namecheap (Custom DNS) ; `make dns` pour vérifier
 cp terraform/environments/prod/backend.hcl.example terraform/environments/prod/backend.hcl
 cp terraform/environments/prod/terraform.tfvars.example terraform/environments/prod/terraform.tfvars
 make init                       # Terraform + collections Ansible
@@ -113,4 +114,4 @@ Makefile                    point d'entrée de toutes les opérations
 |---|---|
 | [logiflow-backend](https://github.com/ibrahim-stitou/logiflow-backend) | `logiflow-backend`, `logiflow-postgres`, `logiflow-keycloak` |
 | [logiflow-ai-service](https://github.com/ibrahim-stitou/logiflow-ai-service) | `logiflow-ai-service` |
-| [logiflow-frontend](https://github.com/OussamaZouaine/logiflow-frontend) | `logiflow-frontend` |
+| [logiflow-frontend](https://github.com/ibrahim-stitou/logiflow-frontend) | `logiflow-frontend` |

@@ -31,6 +31,7 @@ services:
       AUTH_DOMAIN: ${AUTH_DOMAIN:?AUTH_DOMAIN manquant}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./caddy-sites:/etc/caddy/sites:ro
       - caddy-data:/data
       - caddy-config:/config
     depends_on:

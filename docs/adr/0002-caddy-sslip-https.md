@@ -1,6 +1,6 @@
 # ADR 0002 : Caddy et sslip.io pour un HTTPS sans domaine acheté
 
-- **Statut** : acceptée
+- **Statut** : acceptée ; complétée par l'[ADR 0004](0004-domaine-namecheap-route53.md) (domaine propre via Route 53, sslip.io en repli)
 - **Date** : 2026-09-26
 
 ## Contexte

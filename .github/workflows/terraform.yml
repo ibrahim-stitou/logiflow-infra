@@ -28,6 +28,8 @@ env:
   TF_DIR: terraform/environments/prod
   TF_IN_AUTOMATION: "true"
   TF_VAR_email_alertes: ${{ vars.EMAIL_ALERTES }}
+  # Domaine géré par Route 53 (vide : sslip.io) : doit être identique à celui du poste.
+  TF_VAR_domaine: ${{ vars.DOMAINE }}
 
 jobs:
   plan:

@@ -13,6 +13,8 @@
 | IPv4 publique (Elastic IP) | 0,005 $/h, soit ≈ **3,65 $/mois** | En permanence (même instance arrêtée) |
 | S3 (état, sauvegardes, transferts) | ≈ 0,024 $/Go/mois | Quelques Go, donc < 0,20 $ |
 | Alarme CloudWatch | 0,10 $/mois | En permanence |
+| Zone Route 53 (domaine) | 0,50 $/mois + 0,40 $ par million de requêtes | En permanence (survit à `make detruire`) |
+| Domaine Namecheap | Selon l'extension (≈ 10 $/an) | Hors AWS, déjà payé |
 | Transfert sortant | 100 Go/mois gratuits | Négligeable pour une démonstration |
 | SSM Parameter Store (standard), Session Manager, Run Command | Gratuit | — |
 | KMS (clé gérée par AWS), IAM, OIDC | Gratuit | — |
@@ -20,7 +22,7 @@
 | EventBridge Scheduler | Gratuit (14 M d'invocations/mois) | — |
 | Groq (LLM) | Offre gratuite | Hors AWS |
 
-**Coût fixe**, même serveur arrêté : environ **6,90 $/mois** (disque + IP + alarme).
+**Coût fixe**, même serveur arrêté : environ **7,40 $/mois** (disque, IP, alarme et zone DNS).
 
 ## 8.2 Scénarios
 
@@ -61,7 +63,7 @@
 | Arrêter dès la fin de la séance (`make arreter`) | Heures non consommées | Discipline |
 | `taille_disque_go = 20` | ≈ 0,90 $/mois | Moins de marge pour images et sauvegardes locales |
 | Instance Spot | ≈ -60 % sur le calcul | Interruption possible : déconseillé pour une soutenance |
-| Détruire entre deux périodes (`make detruire`) | Supprime le coût fixe (7 $) | Données perdues sauf sauvegarde archivée ; reconstruction ≈ 20 min |
+| Détruire entre deux périodes (`make detruire`) | Ne laisse que la zone DNS (0,50 $) | Données perdues sauf sauvegarde archivée ; reconstruction ≈ 20 min |
 
 ## 8.5 Suivre la consommation
 

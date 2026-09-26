@@ -51,7 +51,7 @@ Caddy n'a pas encore obtenu ses certificats, ou n'y parvient pas.
   car Caddy bascule automatiquement sur ZeroSSL.
 - **Domaine personnalisé** : les enregistrements A doivent pointer vers `ip_publique`
   (`dig +short app.<domaine>`).
-- **sslip.io indisponible** (rare) : passez à un domaine personnalisé.
+- **DNS non délégué ou non propagé** : voir [§ 9.5](#95-dns-et-domaine).
 
 ### `502 Bad Gateway`
 
@@ -151,7 +151,30 @@ docker volume rm logiflow_postgres-data
 | Échec d'envoi vers S3 | `sudo tail -50 /var/log/logiflow-sauvegarde.log` (droits S3 du rôle, nom du bucket dans `.env`) |
 | Restauration : `role "..." does not exist` | Base restaurée sur un serveur neuf avant le premier déploiement : lancer `make configure` d'abord, puis restaurer |
 
-## 9.5 Tout reconstruire
+## 9.5 DNS et domaine
+
+Diagnostic de base, depuis n'importe quel poste :
+
+```bash
+dig +short NS votre-domaine.com @8.8.8.8        # attendu : 4 serveurs *.awsdns-*
+dig +short app.votre-domaine.com @8.8.8.8       # attendu : ip_publique
+dig +short app.votre-domaine.com @ns-1234.awsdns-12.org   # interroger Route 53 directement
+```
+
+| Symptôme | Cause | Correction |
+|---|---|---|
+| `NS` renvoie encore `dns1.registrar-servers.com` | Délégation Namecheap non faite ou pas encore propagée | Vérifier *Custom DNS* chez Namecheap ([étape 1 bis](04-premier-deploiement.md#étape-1-bis--déléguer-le-domaine-namecheap-vers-route-53)) ; attendre (jusqu'à 48 h, souvent < 30 min) |
+| `NS` correct mais `app.` ne résout pas | Enregistrements absents : `make apply` pas encore lancé, ou `domaine` vide dans la prod | `make sortie` → `enregistrements_dns` ; relancer `make apply` avec le bon `domaine` |
+| Route 53 répond, mais Google non | Cache DNS (TTL de 300 s pour les enregistrements A ; jusqu'à 48 h pour les NS) | Attendre, ou vider le cache local (`ipconfig /flushdns`) |
+| `SERVFAIL` | DNSSEC encore actif chez Namecheap alors que la zone Route 53 n'est pas signée | Désactiver DNSSEC chez Namecheap |
+| `make apply` : `no matching Route 53 Hosted Zone found` | Zone non créée : `domaine` absent du `terraform.tfvars` **du bootstrap**, ou orthographe différente | Même valeur dans les deux `terraform.tfvars`, puis `make bootstrap` |
+| `make bootstrap` : `Instance cannot be destroyed` (prevent_destroy) | Changement ou suppression de `domaine` au bootstrap | Voulu : voir [Changer de domaine](04-premier-deploiement.md#changer-de-domaine-plus-tard) |
+| Workflow Terraform : le plan veut supprimer les enregistrements DNS | Variable GitHub `DOMAINE` absente | La définir ([CI/CD § 6.4](06-ci-cd.md#64-configuration-du-dépôt-une-fois)) |
+| Certificat refusé : `CAA record prevents issuance` | Autorité non autorisée par l'enregistrement CAA | Normalement impossible avec Caddy (Let's Encrypt et Sectigo autorisés) ; vérifier `dig CAA votre-domaine.com` |
+| `votre-domaine.com` ne redirige pas vers `app.` | Fichier de redirection absent (config `domaine-racine` manquante) | `make configure-app`, puis vérifier `/opt/logiflow/caddy-sites/redirection.caddy` |
+| Le déploiement échoue sur « attente de l'API (30/30) » juste après la délégation | Caddy ne peut pas encore obtenir de certificat, car le DNS n'est pas propagé | Attendre la propagation, puis `make deployer` : Caddy réessaie automatiquement |
+
+## 9.6 Tout reconstruire
 
 Quand le serveur est dans un état incompréhensible, la reconstruction est prévue et rapide
 (environ 20 min) :

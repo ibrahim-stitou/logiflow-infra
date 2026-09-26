@@ -33,3 +33,8 @@ output "bucket_transferts" {
 output "region" {
   value = var.region
 }
+
+output "enregistrements_dns" {
+  description = "Noms publiés dans Route 53 (vide avec sslip.io)."
+  value       = local.domaine_propre ? module.dns[0].enregistrements : []
+}

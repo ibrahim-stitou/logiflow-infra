@@ -51,3 +51,7 @@
 
 	reverse_proxy keycloak:8080
 }
+
+# Sites complémentaires générés par Ansible selon la configuration, ex. redirection du domaine
+# racine et de www vers l'application (redirection.caddy). Aucun fichier : rien n'est importé.
+import /etc/caddy/sites/*.caddy

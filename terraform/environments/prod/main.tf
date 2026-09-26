@@ -5,11 +5,13 @@ locals {
   nom     = "logiflow-${var.environnement}"
   prefixe = "/logiflow/${var.environnement}"
 
-  # Domaines : le vôtre s'il est fourni, sinon sslip.io (résolution DNS gratuite à partir de l'IP,
-  # compatible Let's Encrypt), ex. app.13-38-12-4.sslip.io.
-  ip_tirets   = replace(module.serveur.ip_publique, ".", "-")
-  app_domain  = var.domaine != "" ? "app.${var.domaine}" : "app.${local.ip_tirets}.sslip.io"
-  auth_domain = var.domaine != "" ? "auth.${var.domaine}" : "auth.${local.ip_tirets}.sslip.io"
+  # Domaines : le vôtre s'il est fourni (zone Route 53 créée par le bootstrap, enregistrements par
+  # le module dns), sinon sslip.io (résolution DNS gratuite à partir de l'IP, compatible
+  # Let's Encrypt), ex. app.13-38-12-4.sslip.io.
+  domaine_propre = var.domaine != ""
+  ip_tirets      = replace(module.serveur.ip_publique, ".", "-")
+  app_domain     = local.domaine_propre ? "app.${var.domaine}" : "app.${local.ip_tirets}.sslip.io"
+  auth_domain    = local.domaine_propre ? "auth.${var.domaine}" : "auth.${local.ip_tirets}.sslip.io"
 }
 
 module "reseau" {
@@ -34,6 +36,13 @@ module "serveur" {
   buckets_arn      = module.sauvegardes.buckets_arn
 }
 
+module "dns" {
+  source      = "../../modules/dns"
+  count       = local.domaine_propre ? 1 : 0
+  domaine     = var.domaine
+  ip_publique = module.serveur.ip_publique
+}
+
 module "secrets" {
   source        = "../../modules/secrets"
   prefixe       = local.prefixe
@@ -41,13 +50,17 @@ module "secrets" {
   llm_api_key   = var.llm_api_key
 
   # Lu par Ansible (make configure) et par le workflow de déploiement.
-  configuration = {
-    app-domain         = local.app_domain
-    auth-domain        = local.auth_domain
-    bucket-sauvegardes = module.sauvegardes.bucket_sauvegardes
-    demo-data          = tostring(var.donnees_demo)
-    mfa-required       = tostring(var.mfa_obligatoire)
-  }
+  configuration = merge(
+    {
+      app-domain         = local.app_domain
+      auth-domain        = local.auth_domain
+      bucket-sauvegardes = module.sauvegardes.bucket_sauvegardes
+      demo-data          = tostring(var.donnees_demo)
+      mfa-required       = tostring(var.mfa_obligatoire)
+    },
+    # Domaine racine et www : redirigés vers l'application par Caddy.
+    local.domaine_propre ? { domaine-racine = var.domaine } : {},
+  )
 }
 
 module "couts" {

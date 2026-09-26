@@ -6,6 +6,7 @@
 graph TB
     subgraph Internet
       U[Utilisateurs]
+      NC[Namecheap<br/>registraire du domaine]
       GH[GitHub Actions]
       LE[Let's Encrypt]
       GROQ[LLM Groq]
@@ -31,8 +32,11 @@ graph TB
       BUDGET[AWS Budgets]
       CW[CloudWatch<br/>récupération auto]
       STATE[(S3 état Terraform)]
+      R53[Route 53<br/>zone du domaine]
     end
 
+    U -.->|résolution DNS| R53
+    NC -.->|délégation NS| R53
     U -->|HTTPS| SG --> CADDY
     CADDY --> FRONT & BACK & KC
     BACK --> AI & PG
@@ -71,6 +75,7 @@ Total plafonné à environ 4,5 Go sur les 8 Go de la `t3.large`, avec 2 Go de sw
 | `https://app.<domaine>/actuator/health` | backend | Santé, utilisée par le script de déploiement |
 | `https://app.<domaine>/*` | frontend | Application Angular |
 | `https://auth.<domaine>/*` | keycloak | Connexion OIDC et console `/admin` ; `/metrics` et `/health` bloqués |
+| `https://<domaine>`, `https://www.<domaine>` | — | Redirection permanente vers `https://app.<domaine>` |
 | `http://…` | — | Redirection automatique vers HTTPS |
 
 L'interface et l'API partagent **la même origine** (`app.<domaine>`) : le navigateur n'a pas de
@@ -111,7 +116,8 @@ Internet.
 
 | Module | Ressources |
 |---|---|
-| `bootstrap` | Bucket S3 de l'état (versionné, chiffré, verrou natif), fournisseur OIDC GitHub, rôles `logiflow-github-terraform` et `logiflow-github-deploiement` |
+| `bootstrap` | Bucket S3 de l'état (versionné, chiffré, verrou natif), fournisseur OIDC GitHub, rôles `logiflow-github-terraform` et `logiflow-github-deploiement`, **zone Route 53** du domaine et enregistrement CAA (protégée contre la suppression) |
+| `dns` | Enregistrements A `app`, `auth`, racine et `www` vers l'Elastic IP |
 | `reseau` | VPC, sous-réseau public, passerelle Internet, groupe de sécurité par défaut verrouillé |
 | `serveur` | EC2 (IMDSv2, disque chiffré), Elastic IP, groupe de sécurité 80/443, rôle IAM (SSM, lecture de ses paramètres, S3 des sauvegardes), alarme de récupération automatique |
 | `secrets` | Paramètres SSM : secrets générés (`/logiflow/prod/secrets/*`) et configuration (`/logiflow/prod/config/*`) |
@@ -149,7 +155,7 @@ graph LR
 | **Une seule EC2 + Docker Compose** | Coût (budget de 70 $), simplicité d'exploitation, stack identique en local et en prod | 3 EC2 privées + NAT (≥ 35 $/mois pour la NAT seule), ECS/EKS (complexité et coût disproportionnés pour un projet d'étude) |
 | **Sous-réseau public sans NAT** | Seuls 80/443 sont ouverts ; administration par SSM | Sous-réseau privé + passerelle NAT : même sécurité applicative, pour 35 $/mois de plus |
 | **Caddy** | TLS automatique sans configuration, HTTP/3, configuration courte | nginx + certbot (plus de pièces mobiles), ALB (≈ 20 $/mois) |
-| **sslip.io** | HTTPS valide sans acheter de domaine | Route 53 + domaine (≈ 12 $/an + 0,50 $/mois), toujours possible via la variable `domaine` |
+| **Domaine Namecheap, DNS dans Route 53** | Enregistrements versionnés dans Terraform, mis à jour automatiquement avec l'IP ; CAA ; 0,50 $/mois | DNS Namecheap géré à la main ; sslip.io (gratuit, conservé comme repli : `domaine = ""`) |
 | **SSM Parameter Store** | Gratuit (niveau standard), chiffré par KMS | Secrets Manager (0,40 $/secret/mois) |
 | **SSM Session Manager** | Aucun port d'administration exposé, accès tracé par IAM | SSH + bastion, clés à gérer |
 | **Arrêt programmé** | Plus de 60 % d'économie sur le calcul | Instance allumée en permanence (≈ 80 $/mois) |
@@ -163,7 +169,7 @@ Voir aussi les [ADR de l'infrastructure](adr/).
   automatiquement (alarme CloudWatch) ; une panne de zone ne l'est pas.
 - **Arrêt nocturne** : l'application est indisponible hors des heures d'allumage (voulu, pour
   économiser les crédits).
-- **Dépendance à sslip.io** pour les domaines gratuits : en cas d'indisponibilité, basculer sur un
-  vrai domaine (variable `domaine`).
+- **Délégation DNS** : la zone Route 53 doit rester déclarée chez Namecheap (serveurs de noms), et le
+  domaine doit être renouvelé chez Namecheap. Sans domaine (`domaine = ""`), l'application dépend de sslip.io.
 - **Images `latest`** par défaut : pour figer une version, utiliser `TAG_BACKEND=<sha>`, `TAG_AI` ou `TAG_FRONTEND` (voir
   [Exploitation](05-exploitation.md#revenir-à-une-version-précédente)).

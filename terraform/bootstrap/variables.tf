@@ -15,3 +15,13 @@ variable "github_depot_infra" {
   type        = string
   default     = "logiflow-infra"
 }
+
+variable "domaine" {
+  description = <<-EOT
+    Domaine acheté chez un registraire (ex. logiflow.ma), géré par Route 53 : une zone publique est
+    créée, ses serveurs de noms (sortie « serveurs_de_noms ») sont à déclarer chez le registraire.
+    Vide : pas de zone (domaines gratuits sslip.io).
+  EOT
+  type        = string
+  default     = ""
+}

@@ -6,8 +6,9 @@ suivante que s'il est obtenu.
 
 ```mermaid
 graph LR
-    A[0. Prérequis] --> B[1. Bootstrap]
-    B --> C[2. Paramètres]
+    A[0. Prérequis] --> B[1. Bootstrap<br/>+ zone DNS]
+    B --> B2[1 bis. Namecheap<br/>→ Route 53]
+    B2 --> C[2. Paramètres]
     C --> D[3. Infrastructure]
     D --> E[4. Clé LLM]
     E --> F[5. Configuration<br/>+ déploiement]
@@ -30,20 +31,21 @@ cd ~/logiflow-infra
 
 ## Étape 1 : bootstrap (une seule fois par compte AWS)
 
-Cette étape crée ce dont Terraform a besoin pour travailler proprement :
+Cette étape crée les ressources **durables**, qui survivent à la destruction de
+l'environnement :
 
 - le bucket S3 de l'**état Terraform**, versionné, chiffré et verrouillé ;
 - le fournisseur **OIDC GitHub** ;
-- les deux **rôles** assumables par les workflows GitHub.
+- les deux **rôles** assumables par les workflows GitHub ;
+- la **zone Route 53** de votre domaine, avec un enregistrement CAA.
 
 ```bash
+cp terraform/bootstrap/terraform.tfvars.example terraform/bootstrap/terraform.tfvars
+# y renseigner : domaine = "votre-domaine.com" (et github_owner si besoin)
 make bootstrap
 ```
 
 Terraform affiche le plan, puis demande confirmation : répondre `yes`.
-
-> Si votre dépôt n'est pas `ibrahim-stitou/logiflow-infra`, passez les variables :
-> `terraform -chdir=terraform/bootstrap apply -var github_owner=<compte>`.
 
 Résultat attendu :
 
@@ -52,13 +54,53 @@ Outputs:
 bucket_etat              = "logiflow-tfstate-123456789012"
 role_github_deploiement  = "arn:aws:iam::123456789012:role/logiflow-github-deploiement"
 role_github_terraform    = "arn:aws:iam::123456789012:role/logiflow-github-terraform"
+serveurs_de_noms         = [
+  "ns-1234.awsdns-12.org",
+  "ns-567.awsdns-34.net",
+  "ns-89.awsdns-56.com",
+  "ns-1890.awsdns-78.co.uk",
+]
 ```
 
-Notez ces trois valeurs : elles servent à l'étape 7.
+Notez ces valeurs. Les serveurs de noms servent à l'étape 1 bis, les rôles et le bucket à
+l'étape 7.
 
 > L'état du bootstrap reste **local** (`terraform/bootstrap/terraform.tfstate`, ignoré par Git).
-> Il ne décrit que ces quelques ressources ; conservez le fichier (ou recréez les ressources par
-> import) si vous voulez les supprimer proprement plus tard.
+> **Conservez-le**, avec `terraform.tfvars`, car il décrit la zone DNS. Pour le retrouver sur
+> un autre poste, relancez `make bootstrap` avec les mêmes variables après avoir importé les
+> ressources existantes (`terraform import`).
+
+## Étape 1 bis : déléguer le domaine Namecheap vers Route 53
+
+*À faire tout de suite* : la propagation prend de quelques minutes à quelques heures. Elle
+s'effectue pendant les étapes suivantes.
+
+1. Connectez-vous à Namecheap, puis ouvrez *Domain List* et cliquez sur **Manage** en face du
+   domaine.
+2. Vérifiez dans *Advanced DNS* que **DNSSEC** est désactivé.
+3. Dans l'onglet *Domain*, section **Nameservers**, choisissez **Custom DNS**.
+4. Saisissez les **4 serveurs de noms** de la sortie `serveurs_de_noms`, sans le point final,
+   puis cliquez sur la coche verte pour enregistrer.
+
+   ```
+   ns-1234.awsdns-12.org
+   ns-567.awsdns-34.net
+   ns-89.awsdns-56.com
+   ns-1890.awsdns-78.co.uk
+   ```
+
+5. Namecheap affiche « DNS server update may take up to 48 hours ». En pratique, cela prend
+   souvent de 5 à 30 minutes.
+
+Pour vérifier (à relancer jusqu'à obtenir les serveurs AWS), utilisez `make dns`, ou directement :
+
+```bash
+dig +short NS votre-domaine.com @8.8.8.8
+# attendu : les 4 serveurs awsdns
+```
+
+> Les serveurs de noms ne changent plus ensuite, même après `make detruire` et une
+> reconstruction, car la zone vit dans le bootstrap. Cette étape n'est faite **qu'une fois**.
 
 ## Étape 2 : paramètres de l'environnement
 
@@ -71,15 +113,15 @@ cd -
 
 1. Dans `backend.hcl`, remplacez `<ID_COMPTE_AWS>` : le nom exact est la sortie `bucket_etat`
    de l'étape 1.
-2. Dans `terraform.tfvars`, **renseignez `email_alertes`**. Les autres valeurs par défaut
-   conviennent :
+2. Dans `terraform.tfvars`, **renseignez `email_alertes`** et **`domaine`**, avec la même
+   valeur qu'au bootstrap. Les autres valeurs par défaut conviennent :
 
 | Variable | Défaut | Rôle |
 |---|---|---|
 | `email_alertes` | — | **Obligatoire** : destinataire des alertes de budget |
 | `type_instance` | `t3.large` | 8 Go de mémoire (voir [coûts](08-couts.md)) |
 | `budget_mensuel_usd` | `30` | Alertes à 50, 80 et 100 % du réel, et à 100 % du prévisionnel |
-| `domaine` | `""` | Vide : `app.<ip>.sslip.io`. Sinon `app.<domaine>` et `auth.<domaine>` (§ Domaine personnalisé) |
+| `domaine` | `""` | Domaine Route 53, qui donne `app.`, `auth.`, puis la racine et `www` redirigés. Vide : `app.<ip>.sslip.io` |
 | `donnees_demo` | `true` | Jeu de démonstration et 6 comptes (un par rôle) |
 | `mfa_obligatoire` | `false` | Le backend exige l'OTP dans les jetons |
 | `arret_automatique` | `true` | Arrêt chaque soir à 20 h (heure de Paris) |
@@ -96,7 +138,7 @@ collections Ansible.
 ## Étape 3 : créer l'infrastructure
 
 ```bash
-make plan     # facultatif : liste les ressources qui seront créées (≈ 35)
+make plan     # facultatif : liste les ressources qui seront créées (≈ 40)
 make apply    # répondre « yes »
 ```
 
@@ -104,14 +146,21 @@ Durée : environ 3 minutes. Résultat attendu :
 
 ```
 Outputs:
-bucket_sauvegardes = "logiflow-prod-sauvegardes-123456789012"
-bucket_transferts  = "logiflow-prod-transferts-123456789012"
-instance_id        = "i-0abc123def4567890"
-ip_publique        = "13.38.1.2"
-prefixe_ssm        = "/logiflow/prod"
-region             = "eu-west-3"
-url_application    = "https://app.13-38-1-2.sslip.io"
-url_keycloak       = "https://auth.13-38-1-2.sslip.io"
+bucket_sauvegardes  = "logiflow-prod-sauvegardes-123456789012"
+bucket_transferts   = "logiflow-prod-transferts-123456789012"
+enregistrements_dns = ["votre-domaine.com", "www.votre-domaine.com", "app.votre-domaine.com", "auth.votre-domaine.com"]
+instance_id         = "i-0abc123def4567890"
+ip_publique         = "13.38.1.2"
+prefixe_ssm         = "/logiflow/prod"
+region              = "eu-west-3"
+url_application     = "https://app.votre-domaine.com"
+url_keycloak        = "https://auth.votre-domaine.com"
+```
+
+Avant l'étape 5, **le DNS doit résoudre**, sinon Caddy ne peut pas obtenir les certificats :
+
+```bash
+dig +short app.votre-domaine.com @8.8.8.8     # attendu : ip_publique
 ```
 
 À ce stade :
@@ -158,7 +207,7 @@ Durée : environ 10 minutes au premier passage (téléchargement des images, pre
 base, émission des certificats). Résultat attendu, en fin de journal :
 
 ```
-[...] OK : https://app.13-38-1-2.sslip.io répond
+[...] OK : https://app.votre-domaine.com répond
 SERVICE    STATUS
 backend    Up 2 minutes (healthy)
 ...
@@ -175,8 +224,8 @@ make identifiants
 Résultat :
 
 ```
-Application : https://app.13-38-1-2.sslip.io
-Keycloak    : https://auth.13-38-1-2.sslip.io/admin
+Application : https://app.votre-domaine.com
+Keycloak    : https://auth.votre-domaine.com/admin
 Admin Keycloak : admin / Xy...
 Comptes de démo (admin, responsable, exploitant, commercial, atelier, chauffeur) : Ab...
 ```
@@ -190,6 +239,8 @@ Parcours de vérification :
 4. Ouvrir le **copilote** et poser une question (« Quels véhicules sont en maintenance ? »). La
    réponse doit arriver en flux continu (streaming).
 5. `make etat` : tous les services sont `healthy` et l'API répond `UP`.
+6. Ouvrir `https://votre-domaine.com` et `https://www.votre-domaine.com` : on doit être redirigé
+   vers `https://app.votre-domaine.com`.
 
 **LogiFlow est en production.** Le serveur s'arrêtera ce soir à 20 h ; il se relance par
 `make demarrer`.
@@ -210,6 +261,7 @@ Cette étape permet d'appliquer Terraform et de déployer depuis GitHub, sans po
 | `AWS_ROLE_DEPLOIEMENT` | `arn:aws:iam::<compte>:role/logiflow-github-deploiement` |
 | `TF_STATE_BUCKET` | `logiflow-tfstate-<compte>` |
 | `EMAIL_ALERTES` | la même adresse que dans `terraform.tfvars` |
+| `DOMAINE` | le même domaine que dans `terraform.tfvars` (vide avec sslip.io) |
 
 4. Test : *Actions → Déployer → Run workflow*, puis approuver. Le workflow démarre le serveur
    s'il est arrêté, et déploie.
@@ -219,18 +271,24 @@ sont décrits dans [CI/CD](06-ci-cd.md).
 
 ---
 
-## Variante : domaine personnalisé
+## Variante : sans domaine (sslip.io)
 
-Pour utiliser `app.mondomaine.fr` au lieu de sslip.io :
+Laissez `domaine = ""` dans les deux `terraform.tfvars` et sautez l'étape 1 bis. L'application
+est alors servie sur `https://app.<ip-avec-tirets>.sslip.io`, avec un certificat valide, sans
+aucune configuration DNS.
 
-1. `domaine = "mondomaine.fr"` dans `terraform.tfvars`, puis `make apply`.
-2. Chez le registraire, créez deux enregistrements **A** vers la sortie `ip_publique` :
-   `app.mondomaine.fr` et `auth.mondomaine.fr`.
-3. Attendez la propagation (`dig +short app.mondomaine.fr`), puis lancez `make configure-app`.
+## Changer de domaine plus tard
 
-Caddy obtient les certificats automatiquement. `keycloak-init` réaligne les URL autorisées du
-client `logiflow-frontend` (redirections, origines) sur le nouveau domaine à chaque
-déploiement.
+1. Au bootstrap, mettez la nouvelle valeur de `domaine`. Terraform refusera de supprimer
+   l'ancienne zone (`prevent_destroy`) : retirez-la d'abord de l'état avec
+   `terraform -chdir=terraform/bootstrap state rm 'aws_route53_zone.principale[0]' 'aws_route53_record.caa[0]'`,
+   puis supprimez-la dans la console Route 53 si elle n'est plus utile.
+2. `make bootstrap`, puis refaites l'étape 1 bis avec les nouveaux serveurs de noms.
+3. Mettez le nouveau `domaine` dans `terraform/environments/prod/terraform.tfvars` (et dans la
+   variable GitHub `DOMAINE`), puis lancez `make apply` et `make configure-app`.
+
+Caddy obtient les nouveaux certificats automatiquement. `keycloak-init` réaligne les URL
+autorisées du client `logiflow-frontend` (redirections, origines) à chaque déploiement.
 
 ## En cas d'échec
 

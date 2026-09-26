@@ -126,6 +126,8 @@ data "aws_iam_policy_document" "terraform" {
     actions = [
       "ec2:*", "ssm:*", "s3:*", "cloudwatch:*", "budgets:*", "scheduler:*",
       "kms:DescribeKey", "kms:ListAliases", "sts:GetCallerIdentity",
+      # Enregistrements DNS de l'application (la zone elle-même reste gérée par le bootstrap).
+      "route53:Get*", "route53:List*", "route53:ChangeResourceRecordSets",
     ]
     resources = ["*"]
   }
@@ -219,4 +221,35 @@ resource "aws_iam_role_policy" "github_deploiement" {
   name   = "logiflow-deploiement"
   role   = aws_iam_role.github_deploiement.id
   policy = data.aws_iam_policy_document.deploiement.json
+}
+
+# --- DNS (facultatif) : zone Route 53 du domaine acheté chez un registraire (ex. Namecheap) ------
+#
+# Créée ici, et non dans l'environnement, pour survivre à `make detruire` : ses 4 serveurs de noms,
+# déclarés une fois chez le registraire, ne changent donc jamais. Les enregistrements de
+# l'application (app, auth, racine, www) sont gérés par l'environnement prod (module dns).
+
+resource "aws_route53_zone" "principale" {
+  count   = var.domaine != "" ? 1 : 0
+  name    = var.domaine
+  comment = "LogiFlow - zone publique, deleguee depuis le registraire"
+
+  lifecycle {
+    # Supprimer la zone changerait les serveurs de noms : à faire volontairement (docs/05).
+    prevent_destroy = true
+  }
+}
+
+# Seules les autorités utilisées par Caddy (Let's Encrypt, et ZeroSSL/Sectigo en repli) peuvent
+# émettre des certificats pour ce domaine.
+resource "aws_route53_record" "caa" {
+  count   = var.domaine != "" ? 1 : 0
+  zone_id = aws_route53_zone.principale[0].zone_id
+  name    = var.domaine
+  type    = "CAA"
+  ttl     = 3600
+  records = [
+    "0 issue \"letsencrypt.org\"",
+    "0 issue \"sectigo.com\"",
+  ]
 }

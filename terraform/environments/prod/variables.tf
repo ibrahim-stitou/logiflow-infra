@@ -23,8 +23,9 @@ variable "taille_disque_go" {
 
 variable "domaine" {
   description = <<-EOT
-    Nom de domaine (ex. logiflow.exemple.fr) : l'application sera servie sur app.<domaine> et
-    auth.<domaine> (enregistrements DNS A à créer vers l'IP de sortie « ip_publique »).
+    Domaine géré par Route 53 (zone créée par le bootstrap, même valeur) : l'application est servie
+    sur app.<domaine>, Keycloak sur auth.<domaine>, et <domaine> / www.<domaine> redirigent vers
+    l'application. Les enregistrements DNS sont créés automatiquement.
     Vide : domaines gratuits sslip.io dérivés de l'IP.
   EOT
   type        = string

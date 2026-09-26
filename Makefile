@@ -24,7 +24,7 @@ ANSIBLE = cd ansible && ANSIBLE_CONFIG=$(CURDIR)/ansible/ansible.cfg ansible-pla
 	-e ansible_aws_ssm_bucket_name=$(bucket_ssm) -e logiflow_tag_backend=$(TAG_BACKEND) \
 	-e logiflow_tag_ai=$(TAG_AI) -e logiflow_tag_frontend=$(TAG_FRONTEND)
 
-.PHONY: aide outils bootstrap init plan apply sortie secret-llm configure configure-app deployer \
+.PHONY: aide outils bootstrap dns init plan apply sortie secret-llm configure configure-app deployer \
 	demarrer arreter statut etat journaux console sauvegarder restaurer sauvegardes \
 	identifiants valider detruire local-up local-down local-journaux
 
@@ -33,14 +33,24 @@ aide: ## Affiche cette aide
 
 # --- Mise en place --------------------------------------------------------------------------------
 
-outils: ## Vérifie les outils du poste (terraform, aws, ansible, plugin SSM, jq)
-	@for t in terraform aws ansible-playbook session-manager-plugin jq; do \
+outils: ## Vérifie les outils du poste (terraform, aws, ansible, plugin SSM, jq, dig)
+	@for t in terraform aws ansible-playbook session-manager-plugin jq dig; do \
 	  printf '%-24s' "$$t"; command -v $$t >/dev/null && echo ok || echo "MANQUANT"; done
 	@aws sts get-caller-identity --query Arn --output text || echo "AWS CLI non authentifiée"
 
-bootstrap: ## (une fois) Crée l'état distant et les rôles GitHub OIDC
+bootstrap: ## (une fois) Crée l'état distant, les rôles GitHub OIDC et la zone Route 53
 	terraform -chdir=terraform/bootstrap init
 	terraform -chdir=terraform/bootstrap apply
+
+dns: ## Serveurs de noms à déclarer chez Namecheap et état de la propagation
+	@echo "Serveurs de noms Route 53 (Namecheap > Domain > Nameservers > Custom DNS) :"
+	@terraform -chdir=terraform/bootstrap output -json serveurs_de_noms | jq -r '.[]' | sed 's/^/  /'
+	@d=$$(sed -nE 's/^domaine *= *"(.*)"/\1/p' terraform/bootstrap/terraform.tfvars); \
+	  test -n "$$d" || { echo "aucun domaine configuré (sslip.io)"; exit 0; }; \
+	  echo "Vus depuis Internet (8.8.8.8) pour $$d :"; \
+	  echo "  NS   : $$(dig +short NS $$d @8.8.8.8 | tr '\n' ' ')"; \
+	  echo "  app  : $$(dig +short app.$$d @8.8.8.8)"; \
+	  echo "  auth : $$(dig +short auth.$$d @8.8.8.8)"
 
 init: ## Initialise Terraform (prod) avec l'état distant
 	$(TF) init -backend-config=backend.hcl

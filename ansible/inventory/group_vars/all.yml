@@ -23,7 +23,7 @@ logiflow_tag_frontend: "{{ logiflow_image_tag }}"
 logiflow_images:
   backend: "ghcr.io/ibrahim-stitou/logiflow-backend:{{ logiflow_tag_backend }}"
   ai: "ghcr.io/ibrahim-stitou/logiflow-ai-service:{{ logiflow_tag_ai }}"
-  frontend: "ghcr.io/oussamazouaine/logiflow-frontend:{{ logiflow_tag_frontend }}"
+  frontend: "ghcr.io/ibrahim-stitou/logiflow-frontend:{{ logiflow_tag_frontend }}"
   keycloak: "ghcr.io/ibrahim-stitou/logiflow-keycloak:{{ logiflow_tag_backend }}"
   postgres: "ghcr.io/ibrahim-stitou/logiflow-postgres:{{ logiflow_tag_backend }}"
 

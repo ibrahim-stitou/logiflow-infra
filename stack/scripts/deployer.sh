@@ -21,6 +21,10 @@ echo "[$(horodatage)] démarrage des services"
 "${COMPOSE[@]}" up -d --remove-orphans --wait --wait-timeout 600 \
   caddy frontend backend ai keycloak postgres
 
+# Fichiers montés (Caddyfile, sites) : pris en compte à chaud, sans interruption.
+echo "[$(horodatage)] rechargement de Caddy"
+"${COMPOSE[@]}" exec -T caddy caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile
+
 echo "[$(horodatage)] configuration de Keycloak"
 "${COMPOSE[@]}" run --rm keycloak-init
 

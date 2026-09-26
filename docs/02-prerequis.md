@@ -32,7 +32,7 @@ le terminal Ubuntu.
 | AWS CLI | v2 | `sudo snap install aws-cli --classic` |
 | Session Manager plugin | récent | voir ci-dessous |
 | Ansible | ≥ 2.16 (core) | `pipx install --include-deps ansible` puis `pipx inject ansible boto3 botocore` |
-| jq, make, git | — | `sudo apt install -y jq make git` |
+| jq, make, git, dig | — | `sudo apt install -y jq make git dnsutils` |
 | Docker (facultatif) | ≥ 24 | uniquement pour [tester en local](03-tester-en-local.md) |
 
 ```bash
@@ -68,6 +68,7 @@ aws                     ok
 ansible-playbook        ok
 session-manager-plugin  ok
 jq                      ok
+dig                     ok
 arn:aws:iam::123456789012:user/admin-logiflow
 ```
 
@@ -84,7 +85,19 @@ applicatif les publie par sa CI à chaque push sur `main` :
 | `ghcr.io/ibrahim-stitou/logiflow-postgres` | logiflow-backend | idem |
 | `ghcr.io/ibrahim-stitou/logiflow-keycloak` | logiflow-backend | idem |
 | `ghcr.io/ibrahim-stitou/logiflow-ai-service` | logiflow-ai-service | idem |
-| `ghcr.io/oussamazouaine/logiflow-frontend` | logiflow-frontend | *Packages* du profil d'Oussama |
+| `ghcr.io/ibrahim-stitou/logiflow-frontend` | logiflow-frontend | idem |
+
+> **Dépôt frontend transféré** (depuis le compte d'Oussama) : les paquets GHCR ne suivent pas
+> le dépôt. Après le transfert :
+>
+> 1. mettez à jour le remote local :
+>    `git remote set-url origin https://github.com/ibrahim-stitou/logiflow-frontend.git` ;
+> 2. poussez sur `main` (ou relancez la CI) pour publier
+>    `ghcr.io/ibrahim-stitou/logiflow-frontend`.
+>
+> La CI calcule le nom de l'image à partir du propriétaire, en minuscules : il n'y a rien à
+> modifier dans le workflow. L'ancien paquet `ghcr.io/oussamazouaine/logiflow-frontend` n'est
+> plus utilisé.
 
 Il faut ensuite choisir **l'une** des deux options suivantes :
 
@@ -98,9 +111,7 @@ Il faut ensuite choisir **l'une** des deux options suivantes :
   aws ssm put-parameter --name /logiflow/prod/secrets/ghcr-token --type SecureString --value <jeton>
   ```
 
-  Ansible détecte ces paramètres et connecte Docker à GHCR. Le jeton doit pouvoir lire les
-  paquets des **deux** comptes : Oussama doit vous donner accès au paquet frontend
-  (*Package settings → Manage access*).
+  Ansible détecte ces paramètres et connecte Docker à GHCR.
 
 > Pour déplacer les images vers un autre compte, modifier `logiflow_images` dans
 > `ansible/inventory/group_vars/all.yml`.
@@ -125,3 +136,38 @@ copilote conversationnel est indisponible.
 
 Une adresse qui reçoit les alertes de **budget** AWS. Elle est renseignée dans
 `terraform.tfvars`.
+
+## 2.6 Nom de domaine (Namecheap)
+
+Le domaine reste **enregistré chez Namecheap** (renouvellement, facturation), mais sa **zone DNS
+est gérée par AWS Route 53**. Namecheap délègue simplement la résolution aux serveurs de noms
+d'AWS. Tous les enregistrements sont donc versionnés dans Terraform, et plus rien ne se saisit
+à la main.
+
+```mermaid
+graph LR
+    N[Namecheap<br/>registraire] -->|serveurs de noms NS| R[Route 53<br/>zone du domaine]
+    R -->|A| IP[Elastic IP du serveur]
+    R --- T[Terraform<br/>bootstrap : zone + CAA<br/>prod : app, auth, racine, www]
+```
+
+| Nom | Rôle |
+|---|---|
+| `app.<domaine>` | Application et API |
+| `auth.<domaine>` | Keycloak (connexion, console d'administration) |
+| `<domaine>`, `www.<domaine>` | Redirection permanente vers `app.<domaine>` |
+
+Avant de commencer :
+
+- [ ] Le domaine est actif dans votre compte Namecheap (*Domain List*).
+- [ ] **DNSSEC désactivé** chez Namecheap (*Advanced DNS → DNSSEC*). Une signature active
+  pendant le changement de serveurs de noms rendrait le domaine injoignable.
+- [ ] Si vous utilisez la **redirection d'e-mails** ou d'autres enregistrements Namecheap, notez-les :
+  ils cessent de fonctionner une fois la délégation faite. Il faut les recréer dans Route 53,
+  par exemple dans `terraform/bootstrap`.
+
+La délégation est décrite pas à pas à l'[étape 1 bis du premier déploiement](04-premier-deploiement.md#étape-1-bis--déléguer-le-domaine-namecheap-vers-route-53).
+Coût : **0,50 $/mois** pour la zone Route 53.
+
+Sans domaine, laissez `domaine = ""` : l'application utilise alors des adresses gratuites
+`app.<ip>.sslip.io`.

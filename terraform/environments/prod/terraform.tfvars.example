@@ -9,8 +9,10 @@ type_instance = "t3.large"
 # Budget mensuel (USD) : alertes e-mail à 50, 80 et 100 %.
 budget_mensuel_usd = 30
 
-# Vide : domaines gratuits sslip.io. Sinon : app.<domaine> et auth.<domaine>.
-domaine = ""
+# Domaine géré par Route 53 : la MÊME valeur que dans terraform/bootstrap/terraform.tfvars.
+# Donne app.<domaine> (application), auth.<domaine> (Keycloak), <domaine> et www → app.
+# Vide : domaines gratuits sslip.io.
+domaine = "exemple.com"
 
 # Jeu de démonstration + comptes admin/exploitant/atelier… (recommandé pour une soutenance).
 donnees_demo = true

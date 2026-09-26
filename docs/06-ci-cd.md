@@ -48,7 +48,7 @@ corresponde à la politique de confiance du rôle :
 
 | Rôle | Accepté pour | Droits |
 |---|---|---|
-| `logiflow-github-terraform` | `repo:<propriétaire>/logiflow-infra` : pull requests, branche `main`, environnement `production` | EC2, SSM, S3, CloudWatch, Budgets, Scheduler ; IAM limité aux ressources `logiflow-*` |
+| `logiflow-github-terraform` | `repo:<propriétaire>/logiflow-infra` : pull requests, branche `main`, environnement `production` | EC2, SSM, S3, CloudWatch, Budgets, Scheduler, enregistrements Route 53 ; IAM limité aux ressources `logiflow-*` |
 | `logiflow-github-deploiement` | environnement `production` uniquement | Décrire et démarrer les instances ; `SendCommand` limité à `AWS-RunShellScript` sur les instances du projet |
 
 Un fork ou un autre dépôt ne peut pas assumer ces rôles. Le rôle de déploiement ne peut rien
@@ -69,6 +69,7 @@ Voir aussi l'[étape 7 du premier déploiement](04-premier-deploiement.md#étape
 | `AWS_ROLE_DEPLOIEMENT` | `arn:aws:iam::123456789012:role/logiflow-github-deploiement` |
 | `TF_STATE_BUCKET` | `logiflow-tfstate-123456789012` |
 | `EMAIL_ALERTES` | `vous@exemple.fr` |
+| `DOMAINE` | `votre-domaine.com` (vide : sslip.io) |
 
 3. **Protection de `main`** (recommandé) : *Settings → Branches → Add rule*, avec pull request
    obligatoire et le workflow **Qualité** requis.

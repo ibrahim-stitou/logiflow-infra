@@ -29,6 +29,22 @@
     - bin
     - keycloak
     - postgres/init
+    - caddy-sites
+
+- name: Rediriger le domaine racine et www vers l'application (domaine Route 53)
+  ansible.builtin.template:
+    src: redirection.caddy.j2
+    dest: "{{ logiflow_repertoire }}/caddy-sites/redirection.caddy"
+    owner: root
+    group: root
+    mode: "0644"
+  when: "'domaine-racine' in logiflow_config"
+
+- name: Retirer la redirection (domaines sslip.io)
+  ansible.builtin.file:
+    path: "{{ logiflow_repertoire }}/caddy-sites/redirection.caddy"
+    state: absent
+  when: "'domaine-racine' not in logiflow_config"
 
 - name: Copier les fichiers de la stack
   ansible.builtin.copy:
