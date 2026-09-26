@@ -1,0 +1,69 @@
+name: Sécurité
+
+# Chaîne DevSecOps de l'infrastructure (voir docs/10-outils-securite.md) :
+#   - secrets committés (Gitleaks, tout l'historique) ;
+#   - mauvaises configurations IaC : Terraform, Compose, Dockerfiles (Trivy config).
+# Résultats : onglet Security > Code scanning. Les écarts assumés sont justifiés dans
+# docs/07-securite.md (§ 7.7) et, le cas échéant, dans .trivyignore.
+# Actions épinglées par SHA de commit (protection contre le détournement de tags).
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "0 5 * * 1" # lundi 5 h UTC : nouvelles règles
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: securite-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  secrets:
+    name: Secrets (Gitleaks)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  iac:
+    name: IaC (Trivy config)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Analyse Terraform, Compose et Dockerfiles
+        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+        with:
+          scan-type: config
+          scan-ref: .
+          severity: MEDIUM,HIGH,CRITICAL
+          format: sarif
+          output: trivy-iac.sarif
+          exit-code: "0" # rapport : les écarts assumés sont documentés (docs/07-securite.md)
+      - uses: github/codeql-action/upload-sarif@88585263c0627ee42c0e1c5143a112c8d6f4aa18 # v4.38.2
+        with:
+          sarif_file: trivy-iac.sarif
+          category: trivy-iac
+      - name: Porte de qualité (mauvaise configuration CRITIQUE = échec)
+        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+        with:
+          scan-type: config
+          scan-ref: .
+          severity: CRITICAL
+          exit-code: "1"
+          skip-setup-trivy: true

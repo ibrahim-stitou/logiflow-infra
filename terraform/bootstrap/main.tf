@@ -38,6 +38,8 @@ locals {
 
 # --- État Terraform ------------------------------------------------------------------------------
 
+# SSE-S3 (clé gérée par AWS) : écart assumé, voir docs/07-securite.md (§ 7.7).
+#trivy:ignore:AWS-0132
 resource "aws_s3_bucket" "etat" {
   bucket = "logiflow-tfstate-${local.compte}"
 }
@@ -49,6 +51,7 @@ resource "aws_s3_bucket_versioning" "etat" {
   }
 }
 
+#trivy:ignore:AWS-0132
 resource "aws_s3_bucket_server_side_encryption_configuration" "etat" {
   bucket = aws_s3_bucket.etat.id
   rule {
@@ -124,12 +127,36 @@ data "aws_iam_policy_document" "terraform" {
   statement {
     sid = "Services"
     actions = [
-      "ec2:*", "ssm:*", "s3:*", "cloudwatch:*", "budgets:*", "scheduler:*",
+      "ec2:*", "ssm:*", "cloudwatch:*", "budgets:*", "scheduler:*",
       "kms:DescribeKey", "kms:ListAliases", "sts:GetCallerIdentity",
       # Enregistrements DNS de l'application (la zone elle-même reste gérée par le bootstrap).
       "route53:Get*", "route53:List*", "route53:ChangeResourceRecordSets",
+      # Services de sécurité (module securite) : détection, audit, alertes.
+      "guardduty:*", "access-analyzer:*", "cloudtrail:*", "sns:*", "events:*",
+      "logs:CreateLogDelivery", "logs:DeleteLogDelivery", "logs:GetLogDelivery", "logs:ListLogDeliveries",
+      "s3:ListAllMyBuckets",
     ]
     resources = ["*"]
+  }
+  # S3 : uniquement les buckets du projet (état, sauvegardes, transferts, journaux).
+  statement {
+    sid = "S3Projet"
+    actions = [
+      "s3:CreateBucket", "s3:DeleteBucket", "s3:DeleteBucketPolicy",
+      "s3:Get*", "s3:List*", "s3:Put*", "s3:DeleteObject", "s3:DeleteObjectVersion",
+    ]
+    resources = ["arn:aws:s3:::logiflow-*", "arn:aws:s3:::logiflow-*/*"]
+  }
+  # Rôles liés aux services de sécurité, créés automatiquement à leur activation.
+  statement {
+    sid       = "RolesLiesSecurite"
+    actions   = ["iam:CreateServiceLinkedRole"]
+    resources = ["*"]
+    condition {
+      test     = "StringEquals"
+      variable = "iam:AWSServiceName"
+      values   = ["guardduty.amazonaws.com", "malware-protection.guardduty.amazonaws.com", "access-analyzer.amazonaws.com"]
+    }
   }
   statement {
     sid = "IamProjet"

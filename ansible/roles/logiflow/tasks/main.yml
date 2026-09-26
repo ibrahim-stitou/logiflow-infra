@@ -63,6 +63,7 @@
     - { src: scripts/sauvegarder.sh, dest: bin/sauvegarder.sh, mode: "0750" }
     - { src: scripts/restaurer.sh, dest: bin/restaurer.sh, mode: "0750" }
     - { src: scripts/etat.sh, dest: bin/etat.sh, mode: "0750" }
+    - { src: scripts/securite.sh, dest: bin/securite.sh, mode: "0750" }
 
 - name: Générer le fichier .env (configuration et secrets)
   ansible.builtin.template:

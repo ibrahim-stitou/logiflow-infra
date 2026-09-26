@@ -1,0 +1,111 @@
+---
+# Durcissement et détection sur le serveur :
+#   - paramètres noyau durcis (sysctl) ;
+#   - auditd : journal d'audit des accès aux secrets et fichiers sensibles ;
+#   - CrowdSec : analyse des journaux (Caddy, système), détection des attaques (scans, force
+#     brute, exploitation de CVE) et blocage des IP au pare-feu, y compris devant les ports
+#     publiés par Docker (chaîne DOCKER-USER) ;
+#   - Lynis : audit de configuration hebdomadaire (make audit).
+# Voir docs/10-outils-securite.md.
+
+- name: Durcir les paramètres noyau et réseau
+  ansible.posix.sysctl:
+    name: "{{ item.key }}"
+    value: "{{ item.value }}"
+    sysctl_file: /etc/sysctl.d/90-logiflow-durcissement.conf
+    reload: true
+    state: present
+  loop: "{{ securite_sysctl | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+
+# --- Audit système -------------------------------------------------------------------------------
+
+- name: Installer auditd et Lynis
+  ansible.builtin.apt:
+    name:
+      - auditd
+      - lynis
+    state: present
+
+- name: Règles d'audit LogiFlow
+  ansible.builtin.template:
+    src: audit.rules.j2
+    dest: /etc/audit/rules.d/50-logiflow.rules
+    mode: "0640"
+  notify: Recharger les règles d'audit
+
+- name: Activer auditd
+  ansible.builtin.systemd_service:
+    name: auditd
+    state: started
+    enabled: true
+
+- name: Audit Lynis hebdomadaire
+  ansible.builtin.cron:
+    name: logiflow-lynis
+    weekday: "{{ securite_lynis_jour }}"
+    hour: "{{ securite_lynis_heure }}"
+    minute: "0"
+    job: "lynis audit system --cronjob > /var/log/lynis-dernier.log 2>&1"
+
+# --- CrowdSec ------------------------------------------------------------------------------------
+
+- name: Installer la clé du dépôt CrowdSec
+  ansible.builtin.get_url:
+    url: https://packagecloud.io/crowdsec/crowdsec/gpgkey
+    dest: /etc/apt/keyrings/crowdsec.asc
+    mode: "0644"
+
+- name: Déclarer le dépôt CrowdSec
+  ansible.builtin.apt_repository:
+    repo: >-
+      deb [signed-by=/etc/apt/keyrings/crowdsec.asc]
+      https://packagecloud.io/crowdsec/crowdsec/ubuntu/ {{ ansible_facts['distribution_release'] }} main
+    filename: crowdsec
+    state: present
+
+# Le moteur d'abord : le bouncer s'y enregistre automatiquement à son installation.
+- name: Installer le moteur CrowdSec
+  ansible.builtin.apt:
+    name: crowdsec
+    state: present
+    update_cache: true
+
+- name: Installer le bouncer pare-feu (iptables)
+  ansible.builtin.apt:
+    name: crowdsec-firewall-bouncer-iptables
+    state: present
+
+- name: Installer les collections CrowdSec
+  ansible.builtin.command: "cscli collections install {{ item }}"
+  args:
+    creates: "/etc/crowdsec/collections/{{ item | basename }}.yaml"
+  loop: "{{ securite_crowdsec_collections }}"
+  notify: Recharger CrowdSec
+
+- name: Lire les journaux de Caddy (conteneur Docker)
+  ansible.builtin.template:
+    src: acquis-caddy.yaml.j2
+    dest: /etc/crowdsec/acquis.d/logiflow-caddy.yaml
+    mode: "0644"
+  notify: Recharger CrowdSec
+
+# Les ports publiés par Docker contournent la chaîne INPUT : le bouncer doit aussi filtrer
+# DOCKER-USER pour protéger Caddy (80/443).
+- name: Bloquer aussi devant les conteneurs (chaîne DOCKER-USER)
+  ansible.builtin.lineinfile:
+    path: /etc/crowdsec/bouncers/crowdsec-firewall-bouncer.yaml
+    regexp: '^\s*#?\s*-\s*DOCKER-USER\s*$'
+    line: "  - DOCKER-USER"
+    insertafter: '^iptables_chains:'
+  notify: Redémarrer le bouncer pare-feu
+
+- name: Démarrer CrowdSec et le bouncer
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    state: started
+    enabled: true
+  loop:
+    - crowdsec
+    - crowdsec-firewall-bouncer

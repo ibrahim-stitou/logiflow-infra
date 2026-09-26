@@ -32,7 +32,8 @@ graph LR
 | Administration | **AWS SSM** : aucun port SSH ouvert, aucune clé SSH |
 | Secrets | **SSM Parameter Store**, générés par Terraform, chiffrés, jamais dans Git |
 | Identité | **Keycloak** (OIDC, PKCE, MFA en option) |
-| Sauvegardes | Quotidiennes (3 bases + pièces jointes) vers **S3**, 14 jours de rétention |
+| Sauvegardes | Quotidiennes (3 bases + pièces jointes) vers **S3** versionné, 14 jours de rétention |
+| Sécurité | **DevSecOps** de bout en bout : Gitleaks, CodeQL, Trivy (dépendances, IaC, images avant publication), Dependabot, SBOM et provenance, OWASP ZAP, CrowdSec, auditd, Lynis, GuardDuty, CloudTrail, Access Analyzer ([détail](docs/10-outils-securite.md)) |
 | Coûts | **Arrêt automatique chaque soir**, alertes de budget : environ 12 à 30 $/mois selon l'usage ([détail](docs/08-couts.md)) |
 | CI/CD | Contrôles qualité et sécurité, `plan` Terraform sur les PR, `apply` et déploiement **en un clic** (OIDC, sans clé AWS dans GitHub) |
 
@@ -63,6 +64,7 @@ Au quotidien :
 ```bash
 make demarrer        # allume le serveur (l'application redémarre seule)
 make etat            # services, santé, ressources, dernière sauvegarde
+make securite        # CrowdSec : IP bloquées, dernières attaques
 make deployer        # met à jour l'application (nouvelles images)
 make arreter         # éteint le serveur (sinon arrêt automatique à 20 h)
 make aide            # toutes les commandes
@@ -83,6 +85,7 @@ make aide            # toutes les commandes
 | 7 | [Sécurité](docs/07-securite.md) | Surface exposée, secrets, identités, durcissement, écarts assumés |
 | 8 | [Coûts](docs/08-couts.md) | Estimation, budget, économies, fin de projet |
 | 9 | [Dépannage](docs/09-depannage.md) | Symptômes, diagnostics et corrections |
+| 10 | [Outils de sécurité](docs/10-outils-securite.md) | Chaîne DevSecOps : CI, DAST, serveur, AWS ; traiter une vulnérabilité, réagir à une alerte |
 | — | [Décisions (ADR)](docs/adr/) | Décisions d'architecture de l'infrastructure |
 
 ## Structure du dépôt
@@ -104,7 +107,8 @@ ansible/
   roles/                      base, docker, logiflow, sauvegardes
   inventory/                  inventaire dynamique EC2 + variables (images, horaires)
 scripts/ssm-exec.sh         exécute une commande sur le serveur via SSM
-.github/workflows/          qualite, terraform, deployer
+.github/workflows/          qualite, securite, terraform, deployer, dast (OWASP ZAP)
+.zap/rules.tsv              règles du scan DAST
 Makefile                    point d'entrée de toutes les opérations
 ```
 

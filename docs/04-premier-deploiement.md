@@ -168,7 +168,10 @@ dig +short app.votre-domaine.com @8.8.8.8     # attendu : ip_publique
 - le serveur Ubuntu tourne, mais aucune application n'est installée ;
 - tous les secrets (mots de passe des bases, de Keycloak et des comptes de démo, clés internes)
   ont été **générés** dans SSM Parameter Store ;
-- AWS envoie un e-mail de confirmation d'abonnement aux alertes de budget : pensez à le valider.
+- les services de sécurité AWS sont actifs : GuardDuty, CloudTrail, VPC Flow Logs, Access Analyzer ;
+- AWS envoie **un e-mail de confirmation** pour les alertes de sécurité (SNS). **Cliquez sur « Confirm
+  subscription »**, sinon aucune alerte ne vous parviendra. Les alertes de budget, elles, arrivent
+  directement.
 
 > Attendez **2 à 3 minutes** avant l'étape 5 : l'agent SSM du serveur doit s'enregistrer. Pour
 > vérifier : `aws ssm describe-instance-information --query 'InstanceInformationList[].PingStatus'`
@@ -264,7 +267,11 @@ Cette étape permet d'appliquer Terraform et de déployer depuis GitHub, sans po
 | `DOMAINE` | le même domaine que dans `terraform.tfvars` (vide avec sslip.io) |
 
 4. Test : *Actions → Déployer → Run workflow*, puis approuver. Le workflow démarre le serveur
-   s'il est arrêté, et déploie.
+   s'il est arrêté, et déploie. Une fois le déploiement réussi, le workflow **DAST (OWASP ZAP)**
+   s'exécute automatiquement : son rapport est dans les artefacts.
+5. **Sécurité des 4 dépôts** : activez *Secret scanning*, *Push protection* et les alertes
+   Dependabot (commande prête à l'emploi dans
+   [Outils de sécurité § 10.1](10-outils-securite.md#réglages-github-à-activer-une-fois-par-dépôt)).
 
 Le fonctionnement détaillé, et le déploiement automatique à chaque push des dépôts applicatifs,
 sont décrits dans [CI/CD](06-ci-cd.md).

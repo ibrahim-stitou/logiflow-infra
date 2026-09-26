@@ -4,18 +4,23 @@
 
 ```mermaid
 graph TB
-    subgraph "Dépôts applicatifs (CI existante)"
+    subgraph "Dépôts applicatifs"
       P1[push main] --> T1[lint + tests + build]
-      T1 --> I1[image GHCR :latest + :sha]
+      P1 --> SEC[Sécurité : Gitleaks,<br/>CodeQL, Trivy fs]
+      T1 --> SC[Trivy image<br/>porte CRITICAL]
+      SC --> I1[image GHCR :latest + :sha<br/>+ SBOM + provenance]
     end
     subgraph "logiflow-infra"
       PR[Pull request] --> Q[Qualité]
+      PR --> S2[Sécurité : Gitleaks,<br/>Trivy IaC]
       PR -->|terraform/**| TP[Terraform plan<br/>commentaire sur la PR]
       M[Run workflow] --> TA[Terraform apply]
       M2[Run workflow<br/>ou repository_dispatch] --> D[Déployer]
     end
     TA -->|OIDC · rôle terraform| AWS[(AWS)]
     D -->|OIDC · rôle déploiement<br/>SSM Run Command| EC2[Serveur]
+    D -->|succès| Z[DAST OWASP ZAP]
+    Z -.->|HTTPS| EC2
     I1 -.->|docker compose pull| EC2
     I1 -.->|facultatif : repository_dispatch| D
     ENV{{Environnement « production »<br/>approbation manuelle}}
@@ -28,13 +33,16 @@ graph TB
 | **Qualité** (`qualite.yml`) | push, pull request | aucun | Contrôles statiques, sans accès AWS |
 | **Terraform** (`terraform.yml`) | PR touchant `terraform/` ; manuel `plan` ou `apply` | `logiflow-github-terraform` | `plan` publié sur la PR ; `apply` après approbation |
 | **Déployer** (`deployer.yml`) | manuel ; `repository_dispatch` de type `deployer` | `logiflow-github-deploiement` | Démarre le serveur si besoin, lance `deployer.sh` par SSM |
+| **Sécurité** (`securite.yml`, dans les 4 dépôts) | push, pull request, chaque lundi, manuel | aucun | Gitleaks, CodeQL, Trivy (dépendances, IaC, images publiées) → onglet *Security* |
+| **DAST (OWASP ZAP)** (`dast.yml`) | après un déploiement réussi ; manuel | aucun | Scan baseline de `app.` et `auth.` en ligne, rapports en artefacts |
+
+Le détail des outils de sécurité est dans [Outils de sécurité](10-outils-securite.md).
 
 ## 6.2 Qualité
 
 | Job | Outils | Vérifie |
 |---|---|---|
 | Terraform | `terraform fmt`, `validate`, **tflint** (règles AWS) | Format, cohérence, erreurs AWS (types d'instance, etc.) |
-| Sécurité de l'IaC | **Trivy** `config` | Mauvaises configurations (Terraform, Dockerfiles, Compose). Informatif : les écarts assumés sont documentés dans [Sécurité](07-securite.md#77-écarts-assumés) |
 | Ansible | **ansible-lint**, profil `production` | Bonnes pratiques, idempotence, noms de tâches |
 | Stack | **shellcheck**, `docker compose config`, `caddy validate`, `jq` | Scripts, Compose, Caddyfile, JSON du realm |
 
@@ -135,7 +143,7 @@ Le workflow *Déployer* démarre alors et **attend l'approbation** de l'environn
 | logiflow-ai-service | CI | `logiflow-ai-service` | `latest`, SHA |
 | logiflow-frontend | `ci.yml` job `docker` | `logiflow-frontend` | `latest`, SHA |
 
-Les images ne sont publiées **qu'après des tests verts** et uniquement sur `main`. Les pull
+Les images ne sont publiées **qu'après des tests verts et une analyse Trivy sans CVE CRITIQUE corrigeable**, uniquement sur `main`, avec leur **SBOM** et leur **provenance** SLSA attachés. Les pull
 requests construisent l'image, sans la publier, pour détecter tôt un Dockerfile cassé.
 
 L'image frontend est **indépendante de l'environnement** : l'URL Keycloak est injectée au

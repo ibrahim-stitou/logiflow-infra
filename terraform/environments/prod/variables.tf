@@ -83,3 +83,12 @@ variable "retention_sauvegardes_jours" {
   type    = number
   default = 14
 }
+
+variable "activer_guardduty" {
+  description = <<-EOT
+    Activer GuardDuty (détection de menaces, 30 jours gratuits puis ≈ 1 $/mois ici). false si un
+    détecteur existe déjà dans le compte et la région (un seul détecteur possible).
+  EOT
+  type        = bool
+  default     = true
+}

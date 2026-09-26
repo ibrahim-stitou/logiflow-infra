@@ -174,7 +174,22 @@ dig +short app.votre-domaine.com @ns-1234.awsdns-12.org   # interroger Route 53 
 | `votre-domaine.com` ne redirige pas vers `app.` | Fichier de redirection absent (config `domaine-racine` manquante) | `make configure-app`, puis vérifier `/opt/logiflow/caddy-sites/redirection.caddy` |
 | Le déploiement échoue sur « attente de l'API (30/30) » juste après la délégation | Caddy ne peut pas encore obtenir de certificat, car le DNS n'est pas propagé | Attendre la propagation, puis `make deployer` : Caddy réessaie automatiquement |
 
-## 9.6 Tout reconstruire
+## 9.6 Outils de sécurité
+
+| Symptôme | Cause | Correction |
+|---|---|---|
+| CI applicative rouge sur « Analyser l'image » ou « Porte de qualité » | CVE CRITIQUE avec correctif dans une dépendance ou l'image de base | Monter la version (ou fusionner la PR Dependabot) ; voir [Traiter une vulnérabilité](10-outils-securite.md#traiter-une-vulnérabilité) |
+| Workflow *Sécurité* rouge sur Gitleaks | Secret détecté dans l'historique | Révoquer le secret **d'abord**, puis le retirer ; faux positif : fichier `.gitleaksignore` avec l'empreinte indiquée |
+| Push refusé : `GH013: Repository rule violations… secret` | Push protection de GitHub | Retirer le secret du commit (`git commit --amend`, `git rebase`) ; ne jamais contourner pour un vrai secret |
+| Pas de résultats dans l'onglet Security | Envoi SARIF impossible (permission `security-events`) ou code scanning désactivé | Vérifier le journal de l'étape `upload-sarif` ; dépôts publics : fonction gratuite |
+| Le site ne répond plus **pour vous seul** (délai d'attente) | Votre IP a été bloquée par CrowdSec (scan, trop d'erreurs 404…) | Depuis un autre réseau ou par SSM : `make securite` pour repérer l'IP, puis `make debloquer IP=<ip>` |
+| Rapport ZAP quasi vide | Runner GitHub bloqué par CrowdSec pendant le scan | Attendu ([§ 10.2](10-outils-securite.md#102-dast--owasp-zap)) : débloquer l'IP et relancer |
+| `make apply` : `detector already exists` (GuardDuty) | Un détecteur existe déjà dans ce compte et cette région | `activer_guardduty = false` (et dans `variables.tf` pour la CI), ou importer le détecteur existant |
+| Aucune alerte de sécurité reçue | Abonnement SNS non confirmé | Cliquer sur « Confirm subscription » dans l'e-mail d'AWS (ou `aws sns list-subscriptions` : `PendingConfirmation`) |
+| `make audit` : `lynis: command not found` | Rôle `securite` jamais appliqué | `make configure` (et pas seulement `configure-app`) |
+| Un conteneur ne démarre plus après le durcissement (`operation not permitted`) | Capacité Linux nécessaire supprimée par `cap_drop: ALL` | `make journaux SERVICE=<service>`, puis ajouter la seule capacité requise (`cap_add`) dans `stack/compose.yaml`, et `make configure-app` |
+
+## 9.7 Tout reconstruire
 
 Quand le serveur est dans un état incompréhensible, la reconstruction est prévue et rapide
 (environ 20 min) :

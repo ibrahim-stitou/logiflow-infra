@@ -17,6 +17,12 @@
 		Referrer-Policy "strict-origin-when-cross-origin"
 		-Server
 	}
+	# Journal d'accès JSON (sortie du conteneur) : analysé par CrowdSec pour détecter scans,
+	# force brute et exploitation de CVE, puis bloquer les IP au pare-feu.
+	log {
+		output stdout
+		format json
+	}
 }
 
 # Application : l'interface et l'API partagent la même origine (pas de CORS côté navigateur).

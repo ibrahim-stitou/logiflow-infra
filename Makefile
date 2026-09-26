@@ -26,7 +26,8 @@ ANSIBLE = cd ansible && ANSIBLE_CONFIG=$(CURDIR)/ansible/ansible.cfg ansible-pla
 
 .PHONY: aide outils bootstrap dns init plan apply sortie secret-llm configure configure-app deployer \
 	demarrer arreter statut etat journaux console sauvegarder restaurer sauvegardes \
-	identifiants valider detruire local-up local-down local-journaux
+	identifiants valider detruire local-up local-down local-journaux \
+	securite audit debloquer journal-audit alertes-securite
 
 aide: ## Affiche cette aide
 	@grep -hE '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
@@ -114,6 +115,30 @@ restaurer: ## Restaure une sauvegarde (interactif, sur le serveur) : make restau
 	@echo "La restauration est interactive : ouvrez une console (make console) puis lancez"
 	@echo "  sudo /opt/logiflow/bin/restaurer.sh --liste"
 	@echo "  sudo /opt/logiflow/bin/restaurer.sh logiflow-<date>.tar"
+
+# --- Sécurité (docs/10-outils-securite.md) ---------------------------------------------------------
+
+securite: ## CrowdSec : journaux analysés, IP bloquées, dernières alertes
+	scripts/ssm-exec.sh $(instance) "/opt/logiflow/bin/securite.sh etat" 120
+
+audit: ## Audit Lynis du serveur (indice de durcissement, avertissements)
+	scripts/ssm-exec.sh $(instance) "/opt/logiflow/bin/securite.sh audit" 600
+
+debloquer: ## Lève le blocage CrowdSec d'une IP : make debloquer IP=1.2.3.4
+	@test -n "$(IP)" || (echo "usage : make debloquer IP=<ip>"; exit 1)
+	scripts/ssm-exec.sh $(instance) "/opt/logiflow/bin/securite.sh debloquer $(IP)" 120
+
+journal-audit: ## Accès aux secrets du jour (auditd) : make journal-audit [CLE=docker-cli]
+	scripts/ssm-exec.sh $(instance) "/opt/logiflow/bin/securite.sh journal $(CLE)" 120
+
+alertes-securite: ## Découvertes GuardDuty actives (sévérité ≥ 4)
+	@d=$$(aws guardduty list-detectors --query 'DetectorIds[0]' --output text); \
+	  ids=$$(aws guardduty list-findings --detector-id $$d \
+	    --finding-criteria '{"Criterion":{"severity":{"Gte":4},"service.archived":{"Eq":["false"]}}}' \
+	    --query 'FindingIds' --output text); \
+	  if [ -z "$$ids" ]; then echo "aucune découverte active"; else \
+	    aws guardduty get-findings --detector-id $$d --finding-ids $$ids \
+	      --query 'Findings[].[Severity,Type,Title,UpdatedAt]' --output table; fi
 
 identifiants: ## Affiche les URL et les identifiants (admin Keycloak, comptes de démo)
 	@echo "Application : $$($(TF) output -raw url_application)"

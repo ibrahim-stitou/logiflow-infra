@@ -1,0 +1,12 @@
+# Ajustement des règles ZAP (DAST). Format : ID<TAB>IGNORE|WARN|FAIL<TAB>justification.
+# Toute alerte ignorée doit être justifiée (voir docs/10-outils-securite.md).
+10096	IGNORE	(Timestamp Disclosure) horodatages des bundles Angular, sans information sensible
+10027	IGNORE	(Information Disclosure - Suspicious Comments) commentaires des bibliothèques minifiées
+10049	IGNORE	(Storable and Cacheable Content) cache voulu des ressources immuables (hash dans le nom)
+10109	IGNORE	(Modern Web Application) informatif : application monopage
+10015	WARN	(Re-examine Cache-control Directives) vérifié : index.html no-cache, config.js no-store
+10038	WARN	(Content Security Policy Header Not Set) CSP à introduire côté nginx (voir docs/07-securite.md)
+10055	WARN	(CSP) directives Keycloak gérées par Keycloak
+10020	FAIL	(Anti-clickjacking Header) X-Frame-Options obligatoire
+10021	FAIL	(X-Content-Type-Options Header Missing) obligatoire
+10035	FAIL	(Strict-Transport-Security Header Not Set) HSTS obligatoire

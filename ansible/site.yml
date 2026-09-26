@@ -8,5 +8,6 @@
   roles:
     - base
     - docker
+    - securite
     - logiflow
     - sauvegardes

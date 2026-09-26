@@ -43,6 +43,9 @@ resource "aws_security_group" "serveur" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  # Sortie ouverte : destinations multiples et variables (GHCR, Groq, OSRM, Let's Encrypt, API
+  # AWS). Écart assumé, sans NAT ni proxy de sortie (docs/07-securite.md, § 7.7).
+  #trivy:ignore:AWS-0104
   egress {
     description = "Sortant - images Docker, LLM, OSRM, Lets Encrypt, API AWS"
     from_port   = 0

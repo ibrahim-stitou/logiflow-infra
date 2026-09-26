@@ -74,3 +74,11 @@ module "couts" {
   cron_arret            = var.cron_arret
   demarrage_automatique = var.demarrage_automatique
 }
+
+module "securite" {
+  source            = "../../modules/securite"
+  nom               = local.nom
+  vpc_id            = module.reseau.vpc_id
+  email_alertes     = var.email_alertes
+  activer_guardduty = var.activer_guardduty
+}

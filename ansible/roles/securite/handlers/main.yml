@@ -1,0 +1,14 @@
+---
+- name: Recharger CrowdSec
+  ansible.builtin.systemd_service:
+    name: crowdsec
+    state: reloaded
+
+- name: Redémarrer le bouncer pare-feu
+  ansible.builtin.systemd_service:
+    name: crowdsec-firewall-bouncer
+    state: restarted
+
+- name: Recharger les règles d'audit
+  ansible.builtin.command: augenrules --load
+  changed_when: true

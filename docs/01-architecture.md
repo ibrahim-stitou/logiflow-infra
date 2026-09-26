@@ -123,6 +123,7 @@ Internet.
 | `secrets` | Paramètres SSM : secrets générés (`/logiflow/prod/secrets/*`) et configuration (`/logiflow/prod/config/*`) |
 | `sauvegardes` | Buckets S3 `sauvegardes` (14 jours) et `transferts` (1 jour, connecteur Ansible) |
 | `couts` | Budget mensuel avec alertes, arrêt planifié chaque soir, démarrage planifié en option |
+| `securite` | GuardDuty, IAM Access Analyzer, CloudTrail (multi-régions, fichiers signés), VPC Flow Logs, bucket de journaux (90 jours), alertes e-mail (EventBridge → SNS) |
 
 ## 1.4 Chaîne de déploiement
 

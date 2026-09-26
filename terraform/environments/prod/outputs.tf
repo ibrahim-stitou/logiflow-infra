@@ -38,3 +38,8 @@ output "enregistrements_dns" {
   description = "Noms publiés dans Route 53 (vide avec sslip.io)."
   value       = local.domaine_propre ? module.dns[0].enregistrements : []
 }
+
+output "bucket_journaux" {
+  description = "Journaux d'audit : CloudTrail (cloudtrail/) et flux VPC (vpc-flow-logs/)."
+  value       = module.securite.bucket_journaux
+}

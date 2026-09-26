@@ -32,14 +32,19 @@
     state: present
     update_cache: true
 
-- name: Configurer le démon Docker (rotation des journaux)
+# Durcissement : aucun conteneur ne peut gagner de privilèges (setuid) ; ports publiés par
+# iptables uniquement (pas de proxy utilisateur : l'IP réelle du client est conservée, ce dont
+# CrowdSec a besoin).
+- name: Configurer le démon Docker (journaux, durcissement)
   ansible.builtin.copy:
     dest: /etc/docker/daemon.json
     content: |
       {
         "log-driver": "json-file",
         "log-opts": { "max-size": "10m", "max-file": "5" },
-        "live-restore": true
+        "live-restore": true,
+        "no-new-privileges": true,
+        "userland-proxy": false
       }
     mode: "0644"
   notify: Redémarrer Docker

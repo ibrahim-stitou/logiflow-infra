@@ -89,23 +89,35 @@ correction à apporter en contexte réel :
 | Écart | Raison | En production réelle |
 |---|---|---|
 | Instance dans un sous-réseau **public** | Pas de passerelle NAT (≈ 35 $/mois) ; seuls 80/443 sont ouverts | Sous-réseau privé + ALB + NAT ou points de terminaison VPC |
-| **Pas de WAF** | Coût (≈ 10 $/mois minimum) | AWS WAF devant un ALB ou CloudFront |
+| **Pas de WAF** managé | Coût (≈ 10 $/mois minimum) ; compensé par CrowdSec (scénarios HTTP, CVE, réputation) | AWS WAF devant un ALB ou CloudFront |
 | **Pas de haute disponibilité** | Coût : une seule instance | Plusieurs zones, base managée (RDS Multi-AZ) |
 | PostgreSQL **en conteneur** | Coût (RDS ≈ 15 $/mois minimum) | Amazon RDS, sauvegardes PITR |
 | Groupe de sécurité ouvert en **sortie** | Images, LLM, OSRM, Let's Encrypt, API AWS | Proxy de sortie ou liste de destinations |
-| Rôle Terraform CI large sur EC2, SSM et S3 | Simplicité ; limité par la confiance OIDC et l'approbation manuelle | Permissions au niveau des ressources, *permission boundary* |
+| Rôle Terraform CI large sur EC2, SSM et les services de sécurité (S3 limité aux buckets `logiflow-*`) | Simplicité ; limité par la confiance OIDC et l'approbation manuelle | Permissions au niveau des ressources, *permission boundary* |
 | Clé KMS **gérée par AWS** | Gratuit | Clé KMS client avec rotation (1 $/mois) |
-| Journaux **locaux** (Docker) | Pas de coût CloudWatch Logs | Centralisation (CloudWatch Logs ou Loki) et alertes |
+| Journaux applicatifs **locaux** (Docker) ; audit AWS dans S3 | Pas de coût CloudWatch Logs ; CrowdSec analyse les journaux sur place | Centralisation (CloudWatch Logs ou Loki) et alertes |
+| Pas de **Security Hub** ni **AWS Config** | ≈ 10 $/mois ; GuardDuty, Access Analyzer et Trivy couvrent l'essentiel | Security Hub (CIS, FSBP) et Config (conformité continue) |
+| Pas de **CSP** stricte sur l'application | Nécessite d'auditer les styles et scripts d'Angular ; signalé par ZAP (`WARN`) | En-tête `Content-Security-Policy` dans nginx |
 | Pas de **DNSSEC** sur la zone | Configuration plus lourde (clé KMS dédiée, DS chez Namecheap) | DNSSEC Route 53 + enregistrement DS chez le registraire |
 | Swagger UI **public** | Démonstration de l'API | `API_DOCS_ENABLED=false` |
 
-Les alertes Trivy correspondant à ces écarts sont donc attendues : le job est informatif.
+Dans le code, chaque écart d'infrastructure est justifié **sur la ressource concernée**, par un
+commentaire `#trivy:ignore:AWS-XXXX`. L'analyse Trivy de l'IaC ne remonte donc aucun écart non
+justifié, et sa porte CRITICAL reste active.
 
-## 7.8 Checklist avant une démonstration publique
+## 7.8 Outils de sécurité
+
+La chaîne DevSecOps complète (CI, DAST, serveur, AWS), le traitement des vulnérabilités et la
+réaction aux alertes sont décrits dans [Outils de sécurité](10-outils-securite.md).
+
+## 7.9 Checklist avant une démonstration publique
 
 - [ ] `make identifiants` : changer le mot de passe `admin` de Keycloak dans la console.
 - [ ] Ne pas projeter les secrets : `make identifiants` les affiche en clair.
 - [ ] Vérifier la note A de <https://www.ssllabs.com/ssltest/> sur `app.<domaine>`.
 - [ ] Vérifier que <https://securityheaders.com> détecte HSTS et les autres en-têtes.
 - [ ] Faire une sauvegarde récente (`make sauvegardes`).
+- [ ] Onglet *Security* des 4 dépôts : aucune alerte critique ouverte.
+- [ ] Dernier rapport ZAP sans `FAIL`, et `make audit` pour relever l'indice Lynis.
+- [ ] `make alertes-securite` : aucune découverte GuardDuty inexpliquée.
 - [ ] Après la démonstration : `donnees_demo = false` si l'application est ouverte au public.

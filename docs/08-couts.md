@@ -14,6 +14,10 @@
 | S3 (état, sauvegardes, transferts) | ≈ 0,024 $/Go/mois | Quelques Go, donc < 0,20 $ |
 | Alarme CloudWatch | 0,10 $/mois | En permanence |
 | Zone Route 53 (domaine) | 0,50 $/mois + 0,40 $ par million de requêtes | En permanence (survit à `make detruire`) |
+| GuardDuty | 30 jours gratuits, puis au volume analysé : ≈ 1 $/mois pour une instance | En permanence |
+| CloudTrail (1re copie des événements de gestion) | Gratuit ; stockage S3 négligeable | En permanence |
+| VPC Flow Logs vers S3 | ≈ 0,50 $/Go, soit ≈ 0,10 $/mois ici | Quand l'instance tourne |
+| IAM Access Analyzer (compte), SNS e-mail, EventBridge | Gratuit | — |
 | Domaine Namecheap | Selon l'extension (≈ 10 $/an) | Hors AWS, déjà payé |
 | Transfert sortant | 100 Go/mois gratuits | Négligeable pour une démonstration |
 | SSM Parameter Store (standard), Session Manager, Run Command | Gratuit | — |
@@ -22,7 +26,7 @@
 | EventBridge Scheduler | Gratuit (14 M d'invocations/mois) | — |
 | Groq (LLM) | Offre gratuite | Hors AWS |
 
-**Coût fixe**, même serveur arrêté : environ **7,40 $/mois** (disque, IP, alarme et zone DNS).
+**Coût fixe**, même serveur arrêté : environ **7,40 $/mois** (disque, IP, alarme et zone DNS), plus **≈ 1 $/mois** de services de sécurité après la période gratuite de GuardDuty (`activer_guardduty = false` pour s'en passer).
 
 ## 8.2 Scénarios
 
