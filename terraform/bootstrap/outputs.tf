@@ -1,14 +1,19 @@
-output "state_bucket_name" {
-  description = "À reporter dans environments/*/backend.tf (bucket)."
-  value       = aws_s3_bucket.terraform_state.id
+output "bucket_etat" {
+  description = "Bucket de l'état Terraform (à reporter dans environments/prod/backend.hcl)."
+  value       = aws_s3_bucket.etat.bucket
 }
 
-output "lock_table_name" {
-  description = "À reporter dans environments/*/backend.tf (dynamodb_table)."
-  value       = aws_dynamodb_table.terraform_lock.name
+output "role_github_terraform" {
+  description = "ARN à enregistrer dans la variable GitHub AWS_ROLE_TERRAFORM."
+  value       = aws_iam_role.github_terraform.arn
 }
 
-output "github_actions_role_arn" {
-  description = "À renseigner dans le secret GitHub AWS_TERRAFORM_ROLE_ARN (workflows CI/CD)."
-  value       = aws_iam_role.github_actions_terraform.arn
+output "role_github_deploiement" {
+  description = "ARN à enregistrer dans la variable GitHub AWS_ROLE_DEPLOIEMENT."
+  value       = aws_iam_role.github_deploiement.arn
+}
+
+output "serveurs_de_noms" {
+  description = "Serveurs de noms Route 53 à déclarer chez le registraire (Namecheap : Custom DNS)."
+  value       = var.domaine != "" ? aws_route53_zone.principale[0].name_servers : []
 }

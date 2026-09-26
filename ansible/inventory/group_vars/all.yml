@@ -1,0 +1,38 @@
+---
+# --- Connexion (AWS SSM, sans SSH) ---
+ansible_connection: community.aws.aws_ssm
+ansible_aws_ssm_region: eu-west-3
+# Bucket de transfert du connecteur SSM : passé par le Makefile depuis la sortie Terraform
+# (-e ansible_aws_ssm_bucket_name=...).
+ansible_python_interpreter: /usr/bin/python3
+
+# --- Environnement ---
+logiflow_environnement: prod
+logiflow_region: eu-west-3
+logiflow_prefixe_ssm: "/logiflow/{{ logiflow_environnement }}"
+logiflow_repertoire: /opt/logiflow
+
+# --- Images (publiées sur GHCR par la CI de chaque dépôt applicatif) ---
+# Étiquette « latest » par défaut. Chaque CI publie aussi le SHA complet du commit, qui permet de
+# figer ou de revenir à une version, image par image (docs/05-exploitation.md) :
+#   make configure-app TAG_BACKEND=<sha> TAG_FRONTEND=<sha>
+logiflow_image_tag: latest
+logiflow_tag_backend: "{{ logiflow_image_tag }}"      # backend, keycloak et postgres (même dépôt)
+logiflow_tag_ai: "{{ logiflow_image_tag }}"
+logiflow_tag_frontend: "{{ logiflow_image_tag }}"
+logiflow_images:
+  backend: "ghcr.io/ibrahim-stitou/logiflow-backend:{{ logiflow_tag_backend }}"
+  ai: "ghcr.io/ibrahim-stitou/logiflow-ai-service:{{ logiflow_tag_ai }}"
+  frontend: "ghcr.io/ibrahim-stitou/logiflow-frontend:{{ logiflow_tag_frontend }}"
+  keycloak: "ghcr.io/ibrahim-stitou/logiflow-keycloak:{{ logiflow_tag_backend }}"
+  postgres: "ghcr.io/ibrahim-stitou/logiflow-postgres:{{ logiflow_tag_backend }}"
+
+# --- Fournisseur LLM ---
+logiflow_llm_modele: openai/gpt-oss-120b
+
+# --- Sauvegardes : tous les jours à 19 h 45, avant l'arrêt automatique de 20 h ---
+logiflow_sauvegarde_heure: "19"
+logiflow_sauvegarde_minute: "45"
+
+# --- Système ---
+logiflow_swap_go: 2

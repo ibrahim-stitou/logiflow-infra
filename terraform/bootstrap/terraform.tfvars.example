@@ -1,0 +1,7 @@
+# Copier en terraform.tfvars (non versionné) avant `make bootstrap`.
+
+# Propriétaire GitHub du dépôt logiflow-infra.
+github_owner = "ibrahim-stitou"
+
+# Domaine acheté (Namecheap…) à gérer par Route 53. Vide : domaines sslip.io.
+domaine = "exemple.com"

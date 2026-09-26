@@ -1,0 +1,56 @@
+name: DAST (OWASP ZAP)
+
+# Test dynamique de l'application EN LIGNE (scan « baseline » : passif, sans attaque active,
+# sans risque pour les données) sur app.<domaine> et auth.<domaine>.
+# Déclenchement : après chaque déploiement réussi, ou à la demande (le serveur doit être allumé).
+# Rapports HTML/JSON/Markdown : artefacts du workflow. Règles ajustées : .zap/rules.tsv.
+# Voir docs/10-outils-securite.md.
+on:
+  workflow_run:
+    workflows: ["Déployer"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      domaine:
+        description: "Domaine à analyser (vide : variable DOMAINE du dépôt)"
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dast
+  cancel-in-progress: true
+
+jobs:
+  zap:
+    name: ZAP baseline (${{ matrix.cible }})
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        cible: [app, auth]
+    env:
+      DOMAINE: ${{ inputs.domaine || vars.DOMAINE }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Vérifier que la cible répond
+        run: |
+          test -n "$DOMAINE" || { echo "::error::variable DOMAINE absente"; exit 1; }
+          curl -fsS -o /dev/null --retry 10 --retry-delay 15 --retry-all-errors \
+            "https://${{ matrix.cible }}.${DOMAINE}/"
+
+      - name: Analyse ZAP baseline
+        uses: zaproxy/action-baseline@6c5a007541891231cd9e0ddec25d4f25c59c9874 # v0.15.0
+        with:
+          target: https://${{ matrix.cible }}.${{ env.DOMAINE }}
+          rules_file_name: .zap/rules.tsv
+          cmd_options: -a -j # règles alpha incluses, spider AJAX (application Angular)
+          allow_issue_writing: false
+          fail_action: false
+          artifact_name: zap-${{ matrix.cible }}

@@ -1,0 +1,66 @@
+name: Déployer
+
+# Met à jour l'application en production : réveille le serveur s'il est arrêté, puis lance
+# /opt/logiflow/bin/deployer.sh via AWS SSM (nouvelles images « latest », Keycloak, contrôle de
+# santé). Déclenchement :
+#   - manuel : Actions > Déployer > Run workflow ;
+#   - automatique depuis un dépôt applicatif : événement repository_dispatch « deployer »
+#     (voir docs/06-ci-cd.md).
+on:
+  workflow_dispatch:
+  repository_dispatch:
+    types: [deployer]
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: deploiement-prod
+  cancel-in-progress: false
+
+jobs:
+  deployer:
+    name: Déployer en production
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_DEPLOIEMENT }}
+          aws-region: eu-west-3
+
+      - name: Trouver le serveur
+        id: serveur
+        run: |
+          ID=$(aws ec2 describe-instances \
+            --filters Name=tag:Projet,Values=logiflow Name=tag:Environnement,Values=prod \
+                      Name=instance-state-name,Values=pending,running,stopping,stopped \
+            --query 'Reservations[0].Instances[0].InstanceId' --output text)
+          test "$ID" != "None"
+          echo "id=$ID" >> "$GITHUB_OUTPUT"
+
+      - name: Démarrer le serveur s'il est arrêté
+        run: |
+          ETAT=$(aws ec2 describe-instances --instance-ids ${{ steps.serveur.outputs.id }} \
+            --query 'Reservations[0].Instances[0].State.Name' --output text)
+          echo "état : $ETAT"
+          if [ "$ETAT" = "stopping" ]; then
+            aws ec2 wait instance-stopped --instance-ids ${{ steps.serveur.outputs.id }}
+            ETAT=stopped
+          fi
+          if [ "$ETAT" = "stopped" ]; then
+            aws ec2 start-instances --instance-ids ${{ steps.serveur.outputs.id }} >/dev/null
+          fi
+          aws ec2 wait instance-status-ok --instance-ids ${{ steps.serveur.outputs.id }}
+          sleep 60   # laisse l'agent SSM et Docker redémarrer
+
+      - name: Déployer
+        run: scripts/ssm-exec.sh ${{ steps.serveur.outputs.id }} /opt/logiflow/bin/deployer.sh 1500
+
+      - name: Résumé
+        if: always()
+        run: echo "Déploiement terminé sur ${{ steps.serveur.outputs.id }}" >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,22 @@
+## {{ ansible_managed }}
+## Journal d'audit (auditd) : accès aux secrets et aux fichiers sensibles du système.
+## Consultation : ausearch -k <clé> -i  (ex. ausearch -k logiflow-secrets -i)
+
+# Secrets et configuration de la stack
+-w {{ logiflow_repertoire }}/.env -p rwa -k logiflow-secrets
+-w {{ logiflow_repertoire }}/compose.yaml -p wa -k logiflow-stack
+
+# Utilisation de Docker (équivaut à root) et de sa configuration
+-w /usr/bin/docker -p x -k docker-cli
+-w /etc/docker -p wa -k docker-config
+
+# Identités et élévation de privilèges
+-w /etc/passwd -p wa -k identite
+-w /etc/group -p wa -k identite
+-w /etc/shadow -p wa -k identite
+-w /etc/sudoers -p wa -k sudo
+-w /etc/sudoers.d -p wa -k sudo
+
+# Tâches planifiées
+-w /etc/cron.d -p wa -k cron
+-w /etc/crontab -p wa -k cron

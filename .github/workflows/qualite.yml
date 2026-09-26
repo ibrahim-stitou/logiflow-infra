@@ -1,0 +1,70 @@
+name: Qualité
+
+# Contrôles sans accès AWS, sur chaque pull request et sur main.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  terraform:
+    name: Terraform (format, validation, tflint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.10.5"
+      - name: Format
+        run: terraform fmt -check -recursive terraform
+      - name: Valider le bootstrap
+        run: |
+          terraform -chdir=terraform/bootstrap init -backend=false -input=false
+          terraform -chdir=terraform/bootstrap validate
+      - name: Valider l'environnement prod
+        run: |
+          terraform -chdir=terraform/environments/prod init -backend=false -input=false
+          terraform -chdir=terraform/environments/prod validate
+      - uses: terraform-linters/setup-tflint@v4
+      - name: tflint
+        run: |
+          tflint --init
+          tflint --recursive --minimum-failure-severity=warning
+
+  ansible:
+    name: Ansible (ansible-lint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Installer ansible et ansible-lint
+        run: pip install ansible-core ansible-lint
+      - name: Installer les collections
+        run: ansible-galaxy collection install -r ansible/requirements.yml
+      - name: ansible-lint
+        working-directory: ansible
+        run: ansible-lint
+
+  stack:
+    name: Stack (shellcheck, Compose, Caddy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: shellcheck
+        run: shellcheck scripts/*.sh stack/scripts/*.sh stack/keycloak/*.sh stack/postgres/init/*.sh
+      - name: Valider compose.yaml
+        run: |
+          sed 's/=$/=validation/' stack/.env.example > /tmp/validation.env
+          docker compose --env-file /tmp/validation.env -f stack/compose.yaml config --quiet
+      - name: Valider le Caddyfile
+        run: |
+          docker run --rm -e APP_DOMAIN=app.localhost -e AUTH_DOMAIN=auth.localhost \
+            -v "$PWD/stack/Caddyfile:/etc/caddy/Caddyfile:ro" caddy:2.8-alpine \
+            caddy validate --config /etc/caddy/Caddyfile
+      - name: Valider le realm Keycloak
+        run: jq empty stack/keycloak/realm-logiflow.json

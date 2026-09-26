@@ -1,8 +1,0 @@
-# Copier en terraform.tfvars (jamais commité) et ajuster si besoin — toutes les valeurs ont des
-# défauts raisonnables dans variables.tf, ce fichier n'est donc utile que pour les surcharger.
-
-# aws_region              = "eu-west-3"
-# backend_instance_type   = "t3.medium"
-# ai_instance_type        = "g4dn.xlarge"
-# frontend_instance_type  = "t3.micro"
-# ollama_model             = "llama3.1"

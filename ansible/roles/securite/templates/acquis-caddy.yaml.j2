@@ -1,0 +1,7 @@
+# {{ ansible_managed }}
+# Journaux d'accès de Caddy (conteneur Docker) analysés par CrowdSec.
+source: docker
+container_name_regexp:
+  - logiflow-caddy
+labels:
+  type: caddy

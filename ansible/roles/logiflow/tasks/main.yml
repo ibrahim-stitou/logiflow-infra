@@ -1,0 +1,92 @@
+---
+# Déploiement de la stack LogiFlow dans {{ logiflow_repertoire }} :
+#   1. lit la configuration et les secrets dans SSM Parameter Store (sur le poste de contrôle) ;
+#   2. copie les fichiers de la stack (dossier stack/ de ce dépôt) ;
+#   3. génère .env ;
+#   4. lance scripts/deployer.sh (images, démarrage, Keycloak, contrôle de santé).
+
+- name: Lire la configuration et les secrets dans SSM Parameter Store
+  ansible.builtin.set_fact:
+    logiflow_config: >-
+      {{ lookup('amazon.aws.aws_ssm', logiflow_prefixe_ssm ~ '/config/', region=logiflow_region,
+                bypath=true, recursive=true, shortnames=true) }}
+    logiflow_secrets: >-
+      {{ lookup('amazon.aws.aws_ssm', logiflow_prefixe_ssm ~ '/secrets/', region=logiflow_region,
+                bypath=true, recursive=true, shortnames=true, decrypt=true) }}
+  delegate_to: localhost
+  become: false
+  no_log: true
+
+- name: Créer l'arborescence de la stack
+  ansible.builtin.file:
+    path: "{{ logiflow_repertoire }}/{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+  loop:
+    - ""
+    - bin
+    - keycloak
+    - postgres/init
+    - caddy-sites
+
+- name: Rediriger le domaine racine et www vers l'application (domaine Route 53)
+  ansible.builtin.template:
+    src: redirection.caddy.j2
+    dest: "{{ logiflow_repertoire }}/caddy-sites/redirection.caddy"
+    owner: root
+    group: root
+    mode: "0644"
+  when: "'domaine-racine' in logiflow_config"
+
+- name: Retirer la redirection (domaines sslip.io)
+  ansible.builtin.file:
+    path: "{{ logiflow_repertoire }}/caddy-sites/redirection.caddy"
+    state: absent
+  when: "'domaine-racine' not in logiflow_config"
+
+- name: Copier les fichiers de la stack
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../stack/{{ item.src }}"
+    dest: "{{ logiflow_repertoire }}/{{ item.dest }}"
+    owner: root
+    group: root
+    mode: "{{ item.mode }}"
+  loop:
+    - { src: compose.yaml, dest: compose.yaml, mode: "0640" }
+    - { src: Caddyfile, dest: Caddyfile, mode: "0644" }
+    - { src: keycloak/realm-logiflow.json, dest: keycloak/realm-logiflow.json, mode: "0644" }
+    - { src: keycloak/init-keycloak.sh, dest: keycloak/init-keycloak.sh, mode: "0755" }
+    - { src: postgres/init/01-bases.sh, dest: postgres/init/01-bases.sh, mode: "0755" }
+    - { src: scripts/deployer.sh, dest: bin/deployer.sh, mode: "0750" }
+    - { src: scripts/sauvegarder.sh, dest: bin/sauvegarder.sh, mode: "0750" }
+    - { src: scripts/restaurer.sh, dest: bin/restaurer.sh, mode: "0750" }
+    - { src: scripts/etat.sh, dest: bin/etat.sh, mode: "0750" }
+    - { src: scripts/securite.sh, dest: bin/securite.sh, mode: "0750" }
+
+- name: Générer le fichier .env (configuration et secrets)
+  ansible.builtin.template:
+    src: env.j2
+    dest: "{{ logiflow_repertoire }}/.env"
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+
+- name: Se connecter à GHCR si un jeton est fourni (images privées)
+  community.docker.docker_login:
+    registry_url: ghcr.io
+    username: "{{ logiflow_secrets['ghcr-user'] }}"
+    password: "{{ logiflow_secrets['ghcr-token'] }}"
+  when: "'ghcr-token' in logiflow_secrets"
+  no_log: true
+
+- name: Déployer la stack (images, démarrage, Keycloak, santé)
+  ansible.builtin.command: "{{ logiflow_repertoire }}/bin/deployer.sh"
+  register: logiflow_deploiement
+  changed_when: true
+
+- name: Résultat du déploiement
+  ansible.builtin.debug:
+    msg: "{{ logiflow_deploiement.stdout_lines[-12:] }}"

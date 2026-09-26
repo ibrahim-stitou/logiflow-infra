@@ -1,0 +1,35 @@
+---
+# Paramètres noyau durcis (recommandations CIS / Lynis compatibles avec Docker : le routage IP,
+# nécessaire aux conteneurs, reste actif).
+securite_sysctl:
+  net.ipv4.conf.all.accept_redirects: 0
+  net.ipv4.conf.default.accept_redirects: 0
+  net.ipv6.conf.all.accept_redirects: 0
+  net.ipv6.conf.default.accept_redirects: 0
+  net.ipv4.conf.all.send_redirects: 0
+  net.ipv4.conf.default.send_redirects: 0
+  net.ipv4.conf.all.accept_source_route: 0
+  net.ipv4.conf.default.accept_source_route: 0
+  net.ipv4.conf.all.log_martians: 1
+  net.ipv4.tcp_syncookies: 1
+  net.ipv4.icmp_echo_ignore_broadcasts: 1
+  net.ipv4.icmp_ignore_bogus_error_responses: 1
+  kernel.kptr_restrict: 2
+  kernel.dmesg_restrict: 1
+  kernel.unprivileged_bpf_disabled: 1
+  net.core.bpf_jit_harden: 2
+  fs.protected_hardlinks: 1
+  fs.protected_symlinks: 1
+  fs.suid_dumpable: 0
+
+# Collections CrowdSec (hub) : journaux Caddy, scénarios HTTP génériques, exploitation de CVE
+# connues, système Linux.
+securite_crowdsec_collections:
+  - crowdsecurity/linux
+  - crowdsecurity/caddy
+  - crowdsecurity/http-cve
+  - crowdsecurity/base-http-scenarios
+
+# Audit Lynis hebdomadaire (dimanche 4 h), rapport dans /var/log/lynis-report.dat.
+securite_lynis_jour: "0"
+securite_lynis_heure: "4"

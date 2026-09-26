@@ -1,0 +1,31 @@
+---
+# Sauvegarde quotidienne (bases + pièces jointes → S3), avant l'arrêt automatique du soir.
+
+- name: Créer le répertoire des sauvegardes locales
+  ansible.builtin.file:
+    path: /var/backups/logiflow
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Planifier la sauvegarde quotidienne
+  ansible.builtin.cron:
+    name: logiflow-sauvegarde
+    user: root
+    hour: "{{ logiflow_sauvegarde_heure }}"
+    minute: "{{ logiflow_sauvegarde_minute }}"
+    job: "{{ logiflow_repertoire }}/bin/sauvegarder.sh >> /var/log/logiflow-sauvegarde.log 2>&1"
+
+- name: Faire tourner le journal des sauvegardes
+  ansible.builtin.copy:
+    dest: /etc/logrotate.d/logiflow-sauvegarde
+    content: |
+      /var/log/logiflow-sauvegarde.log {
+        weekly
+        rotate 4
+        compress
+        missingok
+        notifempty
+      }
+    mode: "0644"

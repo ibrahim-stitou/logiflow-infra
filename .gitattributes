@@ -1,0 +1,2 @@
+# Fins de ligne LF partout : scripts exécutés sur Linux (serveur, CI, WSL).
+* text=auto eol=lf

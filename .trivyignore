@@ -1,0 +1,2 @@
+# Écarts de configuration acceptés (Trivy config). Un identifiant par ligne, justifié :
+#   AVD-XXX-NNNN   # raison - revue le AAAA-MM-JJ (voir docs/07-securite.md, § 7.7)

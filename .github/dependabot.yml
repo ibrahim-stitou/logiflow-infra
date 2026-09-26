@@ -1,0 +1,21 @@
+# Mises à jour automatiques : actions GitHub (épinglées par SHA), providers Terraform, images
+# de la stack Compose.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      github-actions:
+        patterns: ["*"]
+
+  - package-ecosystem: terraform
+    directories: [/terraform/bootstrap, /terraform/environments/prod]
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: docker-compose
+    directory: /stack
+    schedule:
+      interval: weekly

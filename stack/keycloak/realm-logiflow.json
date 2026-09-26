@@ -1,0 +1,116 @@
+{
+  "realm": "logiflow",
+  "enabled": true,
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": false,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "loginTheme": "logiflow",
+  "internationalizationEnabled": true,
+  "supportedLocales": [
+    "fr",
+    "en"
+  ],
+  "defaultLocale": "fr",
+  "accessTokenLifespan": 300,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "revokeRefreshToken": true,
+  "refreshTokenMaxReuse": 0,
+  "roles": {
+    "realm": [
+      {
+        "name": "ADMINISTRATEUR",
+        "description": "Administrateur applicatif LogiFlow",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "name": "RESPONSABLE_EXPLOITATION",
+        "description": "Responsable exploitation",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "name": "EXPLOITANT",
+        "description": "Exploitant",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "name": "COMMERCIAL",
+        "description": "Commercial",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "name": "ATELIER",
+        "description": "Atelier",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "name": "CHAUFFEUR",
+        "description": "Chauffeur",
+        "composite": false,
+        "clientRole": false
+      }
+    ]
+  },
+  "requiredActions": [
+    {
+      "alias": "CONFIGURE_TOTP",
+      "name": "Configure OTP",
+      "providerId": "CONFIGURE_TOTP",
+      "enabled": true,
+      "defaultAction": false,
+      "priority": 10,
+      "config": {}
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "logiflow-frontend",
+      "name": "LogiFlow Frontend",
+      "description": "Client public Angular (Authorization Code + PKCE)",
+      "enabled": true,
+      "publicClient": true,
+      "protocol": "openid-connect",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "frontchannelLogout": true,
+      "rootUrl": "${LOGIFLOW_APP_URL}",
+      "baseUrl": "/",
+      "redirectUris": [
+        "${LOGIFLOW_APP_URL}/connexion/retour"
+      ],
+      "webOrigins": [
+        "${LOGIFLOW_APP_URL}"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "${LOGIFLOW_APP_URL}/connexion"
+      },
+      "fullScopeAllowed": true,
+      "defaultClientScopes": [
+        "web-origins",
+        "acr",
+        "profile",
+        "roles",
+        "email",
+        "basic"
+      ],
+      "optionalClientScopes": [
+        "address",
+        "phone",
+        "offline_access",
+        "microprofile-jwt"
+      ]
+    }
+  ]
+}

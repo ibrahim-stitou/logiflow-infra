@@ -1,0 +1,6 @@
+# {{ ansible_managed }}
+# Domaine racine et www : redirection permanente vers l'application.
+{{ logiflow_config['domaine-racine'] }}, www.{{ logiflow_config['domaine-racine'] }} {
+	import securite
+	redir https://{{ logiflow_config['app-domain'] }}{uri} permanent
+}
