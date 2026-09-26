@@ -14,8 +14,8 @@ jobs:
     name: Terraform (format, validation, tflint)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: hashicorp/setup-terraform@v3
+      - uses: actions/checkout@v7
+      - uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: "1.10.5"
       - name: Format
@@ -28,7 +28,7 @@ jobs:
         run: |
           terraform -chdir=terraform/environments/prod init -backend=false -input=false
           terraform -chdir=terraform/environments/prod validate
-      - uses: terraform-linters/setup-tflint@v4
+      - uses: terraform-linters/setup-tflint@v6
       - name: tflint
         run: |
           tflint --init
@@ -38,8 +38,8 @@ jobs:
     name: Ansible (ansible-lint)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       - name: Installer ansible et ansible-lint
@@ -54,7 +54,7 @@ jobs:
     name: Stack (shellcheck, Compose, Caddy)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: shellcheck
         run: shellcheck scripts/*.sh stack/scripts/*.sh stack/keycloak/*.sh stack/postgres/init/*.sh
       - name: Valider compose.yaml
