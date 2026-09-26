@@ -280,3 +280,15 @@ resource "aws_route53_record" "caa" {
     "0 issue \"sectigo.com\"",
   ]
 }
+
+# Enregistrements existants à conserver lors de la délégation (messagerie, vérifications…),
+# déclarés dans terraform.tfvars (variable enregistrements_dns).
+resource "aws_route53_record" "supplementaire" {
+  for_each = var.domaine != "" ? { for e in var.enregistrements_dns : "${e.nom}|${e.type}" => e } : {}
+
+  zone_id = aws_route53_zone.principale[0].zone_id
+  name    = each.value.nom == "" ? var.domaine : "${each.value.nom}.${var.domaine}"
+  type    = each.value.type
+  ttl     = each.value.ttl
+  records = each.value.valeurs
+}

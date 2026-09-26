@@ -25,3 +25,18 @@ variable "domaine" {
   type        = string
   default     = ""
 }
+
+variable "enregistrements_dns" {
+  description = <<-EOT
+    Enregistrements DNS existants à recréer dans Route 53 (messagerie, vérifications…), sinon
+    perdus lors de la délégation. nom : "" pour la racine, "mail" pour mail.<domaine>. Un seul
+    élément par couple (nom, type) ; les valeurs TXT s'écrivent entre guillemets échappés.
+  EOT
+  type = list(object({
+    nom     = string
+    type    = string
+    ttl     = optional(number, 3600)
+    valeurs = list(string)
+  }))
+  default = []
+}

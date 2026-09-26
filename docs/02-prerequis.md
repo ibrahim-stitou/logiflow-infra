@@ -162,9 +162,15 @@ Avant de commencer :
 - [ ] Le domaine est actif dans votre compte Namecheap (*Domain List*).
 - [ ] **DNSSEC désactivé** chez Namecheap (*Advanced DNS → DNSSEC*). Une signature active
   pendant le changement de serveurs de noms rendrait le domaine injoignable.
-- [ ] Si vous utilisez la **redirection d'e-mails** ou d'autres enregistrements Namecheap, notez-les :
-  ils cessent de fonctionner une fois la délégation faite. Il faut les recréer dans Route 53,
-  par exemple dans `terraform/bootstrap`.
+- [ ] **Relevez les enregistrements existants** (messagerie, vérifications). Ils cessent de
+  fonctionner une fois la délégation faite, sauf s'ils sont recréés dans Route 53 par la variable
+  `enregistrements_dns` de `terraform/bootstrap/terraform.tfvars`. L'exemple fourni correspond à
+  **Namecheap Private Email** (MX, SPF, `mail`, `autodiscover`, `autoconfig`). Pour les relever :
+
+  ```bash
+  for t in MX TXT; do dig +short $t votre-domaine.com; done
+  for s in mail autodiscover autoconfig default._domainkey _dmarc; do echo "$s: $(dig +short CNAME $s.votre-domaine.com) $(dig +short TXT $s.votre-domaine.com)"; done
+  ```
 
 La délégation est décrite pas à pas à l'[étape 1 bis du premier déploiement](04-premier-deploiement.md#étape-1-bis--déléguer-le-domaine-namecheap-vers-route-53).
 Coût : **0,50 $/mois** pour la zone Route 53.

@@ -5,3 +5,13 @@ github_owner = "ibrahim-stitou"
 
 # Domaine acheté (Namecheap…) à gérer par Route 53. Vide : domaines sslip.io.
 domaine = "exemple.com"
+
+# Enregistrements existants à conserver (relevés AVANT la délégation, voir docs/02-prerequis.md).
+# Exemple : messagerie Namecheap Private Email.
+enregistrements_dns = [
+  { nom = "", type = "MX", valeurs = ["10 mx1.privateemail.com", "10 mx2.privateemail.com"] },
+  { nom = "", type = "TXT", valeurs = ["\"v=spf1 include:spf.privateemail.com ~all\""] },
+  { nom = "mail", type = "CNAME", valeurs = ["privateemail.com"] },
+  { nom = "autodiscover", type = "CNAME", valeurs = ["privateemail.com"] },
+  { nom = "autoconfig", type = "CNAME", valeurs = ["privateemail.com"] },
+]
