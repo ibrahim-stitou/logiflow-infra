@@ -3,8 +3,6 @@
 #   - arrêt automatique du serveur chaque soir (et démarrage automatique en option), via EventBridge
 #     Scheduler : on ne paie le calcul que pendant les heures de travail.
 
-data "aws_region" "courante" {}
-
 resource "aws_budgets_budget" "mensuel" {
   name         = "${var.nom}-mensuel"
   budget_type  = "COST"
