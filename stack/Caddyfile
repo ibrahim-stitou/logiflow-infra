@@ -3,7 +3,6 @@
 # Certificats HTTPS obtenus et renouvelés automatiquement (Let's Encrypt, repli ZeroSSL) pour
 # APP_DOMAIN et AUTH_DOMAIN. Avec des domaines *.localhost (test local), Caddy utilise sa propre
 # autorité de certification interne. Aucun e-mail n'est nécessaire pour Let's Encrypt.
-
 {
 	servers {
 		protocols h1 h2 h3
