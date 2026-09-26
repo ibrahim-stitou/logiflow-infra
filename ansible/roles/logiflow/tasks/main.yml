@@ -17,19 +17,24 @@
   become: false
   no_log: true
 
+# Racine et scripts : root uniquement (le .env y est en 600). Dossiers montés dans les conteneurs :
+# lisibles, car les processus y tournent sous un utilisateur non-root (postgres, keycloak…).
 - name: Créer l'arborescence de la stack
   ansible.builtin.file:
-    path: "{{ logiflow_repertoire }}/{{ item }}"
+    path: "{{ logiflow_repertoire }}/{{ item.chemin }}"
     state: directory
     owner: root
     group: root
-    mode: "0750"
+    mode: "{{ item.mode }}"
   loop:
-    - ""
-    - bin
-    - keycloak
-    - postgres/init
-    - caddy-sites
+    - { chemin: "", mode: "0750" }
+    - { chemin: bin, mode: "0750" }
+    - { chemin: keycloak, mode: "0755" }
+    - { chemin: postgres, mode: "0755" }
+    - { chemin: postgres/init, mode: "0755" }
+    - { chemin: caddy-sites, mode: "0755" }
+  loop_control:
+    label: "{{ item.chemin or '.' }}"
 
 - name: Rediriger le domaine racine et www vers l'application (domaine Route 53)
   ansible.builtin.template:
