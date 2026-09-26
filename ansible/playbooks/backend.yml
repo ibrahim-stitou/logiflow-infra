@@ -1,6 +1,0 @@
----
-- name: (Re)déployer uniquement le backend
-  hosts: role_backend
-  become: true
-  roles:
-    - backend

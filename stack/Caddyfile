@@ -1,0 +1,53 @@
+# Reverse proxy et TLS de LogiFlow.
+#
+# Certificats HTTPS obtenus et renouvelés automatiquement (Let's Encrypt, repli ZeroSSL) pour
+# APP_DOMAIN et AUTH_DOMAIN. Avec des domaines *.localhost (test local), Caddy utilise sa propre
+# autorité de certification interne. Aucun e-mail n'est nécessaire pour Let's Encrypt.
+
+{
+	servers {
+		protocols h1 h2 h3
+	}
+}
+
+(securite) {
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+}
+
+# Application : l'interface et l'API partagent la même origine (pas de CORS côté navigateur).
+{$APP_DOMAIN} {
+	import securite
+	encode zstd gzip
+
+	# API REST. flush_interval -1 : le copilote répond en streaming (SSE), sans mise en tampon.
+	@api path /api/* /v3/api-docs* /swagger-ui* /actuator/health*
+	handle @api {
+		reverse_proxy backend:8080 {
+			flush_interval -1
+			transport http {
+				read_timeout 15m
+			}
+		}
+	}
+
+	handle {
+		reverse_proxy frontend:8080
+	}
+}
+
+# Keycloak (connexion OIDC, console d'administration sur /admin).
+{$AUTH_DOMAIN} {
+	import securite
+	encode zstd gzip
+
+	# Points de supervision de Keycloak : jamais exposés publiquement.
+	@interne path /metrics* /health*
+	respond @interne 404
+
+	reverse_proxy keycloak:8080
+}

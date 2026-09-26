@@ -1,8 +1,0 @@
----
-- name: Durcissement + Docker sur toutes les instances
-  hosts: all
-  become: true
-  roles:
-    - hardening
-    - docker
-    - monitoring

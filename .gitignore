@@ -10,19 +10,17 @@ crash.*.log
 !*.tfvars.example
 backend.hcl
 !backend.hcl.example
-# .terraform.lock.hcl est volontairement COMMITÉ (versions de provider reproductibles entre
-# postes/CI), contrairement à une pratique fréquente mais déconseillée par HashiCorp.
+# .terraform.lock.hcl est volontairement COMMITÉ : versions de providers reproductibles.
 
 # Ansible
 *.retry
-ansible/inventory/*.ini
-!ansible/inventory/aws_ec2.yml
+.ansible/
 
-# Secrets / environnement
+# Secrets et environnements locaux
 .env
+.env.*
+!.env.example
 *.pem
-*.pub
-!terraform/environments/dev/templates/*.tpl
 
 # IDE / OS
 .idea/

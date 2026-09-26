@@ -1,0 +1,7 @@
+# Copier en backend.hcl (non versionné) après le bootstrap :
+#   terraform -chdir=terraform/bootstrap output -raw bucket_etat
+bucket       = "logiflow-tfstate-<ID_COMPTE_AWS>"
+key          = "prod/terraform.tfstate"
+region       = "eu-west-3"
+encrypt      = true
+use_lockfile = true

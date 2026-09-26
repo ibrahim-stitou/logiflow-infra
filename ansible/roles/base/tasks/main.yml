@@ -1,0 +1,84 @@
+---
+# Système de base : paquets, mises à jour de sécurité automatiques, fuseau horaire, swap,
+# durcissement (aucun accès SSH : administration exclusivement par SSM).
+
+- name: Mettre à jour l'index des paquets
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Installer les outils de base
+  ansible.builtin.apt:
+    name:
+      - ca-certificates
+      - curl
+      - gnupg
+      - jq
+      - unzip
+      - unattended-upgrades
+      - python3-boto3
+    state: present
+
+- name: Installer l'AWS CLI (sauvegardes vers S3)
+  community.general.snap:
+    name: aws-cli
+    classic: true
+    state: present
+
+- name: Activer les mises à jour de sécurité automatiques
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
+    mode: "0644"
+
+- name: Fuseau horaire Europe/Paris
+  community.general.timezone:
+    name: Europe/Paris
+
+- name: Vérifier la présence du fichier d'échange
+  ansible.builtin.stat:
+    path: /swapfile
+  register: base_swap
+
+- name: "Créer le fichier d'échange, taille en Go : {{ logiflow_swap_go }}"
+  when: not base_swap.stat.exists
+  block:
+    - name: Allouer le fichier d'échange
+      ansible.builtin.command: "fallocate -l {{ logiflow_swap_go }}G /swapfile"
+      changed_when: true
+
+    - name: Restreindre les droits du fichier d'échange
+      ansible.builtin.file:
+        path: /swapfile
+        mode: "0600"
+
+    - name: Formater le fichier d'échange
+      ansible.builtin.command: mkswap /swapfile
+      changed_when: true
+
+    - name: Activer le fichier d'échange
+      ansible.builtin.command: swapon /swapfile
+      changed_when: true
+
+- name: Monter le fichier d'échange au démarrage
+  ansible.posix.mount:
+    src: /swapfile
+    path: none
+    fstype: swap
+    opts: sw
+    state: present
+
+- name: Limiter l'usage du swap
+  ansible.posix.sysctl:
+    name: vm.swappiness
+    value: "10"
+    state: present
+
+- name: Désactiver le service SSH (administration par SSM uniquement)
+  ansible.builtin.systemd_service:
+    name: ssh
+    state: stopped
+    enabled: false
+  failed_when: false

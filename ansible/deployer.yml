@@ -1,0 +1,9 @@
+---
+# Redéploiement applicatif seul (fichiers de la stack, .env, images) sans reconfigurer le système.
+#   make configure-app
+- name: Déployer l'application LogiFlow
+  hosts: logiflow
+  become: true
+  gather_facts: false
+  roles:
+    - logiflow

@@ -1,17 +1,17 @@
-variable "aws_region" {
-  description = "Région AWS où créer le bucket S3 et la table DynamoDB de state."
+variable "region" {
+  description = "Région AWS du projet."
   type        = string
   default     = "eu-west-3"
 }
 
-variable "project_name" {
-  description = "Préfixe de nommage des ressources (bucket, table de lock)."
+variable "github_owner" {
+  description = "Propriétaire GitHub du dépôt logiflow-infra (utilisateur ou organisation)."
   type        = string
-  default     = "logiflow"
+  default     = "ibrahim-stitou"
 }
 
-variable "github_repository" {
-  description = "Dépôt GitHub autorisé à assumer le rôle OIDC Terraform, au format owner/repo."
+variable "github_depot_infra" {
+  description = "Nom du dépôt d'infrastructure autorisé à assumer les rôles."
   type        = string
-  default     = "ibrahim-stitou/logiflow-infra"
+  default     = "logiflow-infra"
 }

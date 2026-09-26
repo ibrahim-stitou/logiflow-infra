@@ -1,9 +1,0 @@
----
-- name: Redémarrer l'instance (pilote GPU)
-  ansible.builtin.reboot:
-    reboot_timeout: 300
-
-- name: Redémarrer Docker
-  ansible.builtin.systemd:
-    name: docker
-    state: restarted

@@ -1,0 +1,20 @@
+# Copier en terraform.tfvars (non versionné) et compléter.
+
+email_alertes = "vous@exemple.fr"
+
+# Serveur : t3.large (8 Go) recommandé. t3.medium (4 Go) divise le coût par deux, mais la stack
+# y est à l'étroit (Spring Boot + Keycloak + Flask + PostgreSQL).
+type_instance = "t3.large"
+
+# Budget mensuel (USD) : alertes e-mail à 50, 80 et 100 %.
+budget_mensuel_usd = 30
+
+# Vide : domaines gratuits sslip.io. Sinon : app.<domaine> et auth.<domaine>.
+domaine = ""
+
+# Jeu de démonstration + comptes admin/exploitant/atelier… (recommandé pour une soutenance).
+donnees_demo = true
+
+# Économies : arrêt chaque soir à 20 h ; démarrage automatique à 8 h les jours ouvrés (facultatif).
+arret_automatique     = true
+demarrage_automatique = false

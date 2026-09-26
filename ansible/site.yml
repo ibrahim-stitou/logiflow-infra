@@ -1,0 +1,12 @@
+---
+# Configuration complète du serveur puis déploiement de LogiFlow (idempotent).
+#   make configure            (depuis la racine du dépôt)
+- name: Configurer le serveur LogiFlow
+  hosts: logiflow
+  become: true
+  gather_facts: true
+  roles:
+    - base
+    - docker
+    - logiflow
+    - sauvegardes
