@@ -41,6 +41,8 @@ graph LR
 
 ## Démarrage rapide
 
+> 📘 **Tout-en-un : [GUIDE-COMPLET.md](GUIDE-COMPLET.md)**, de zéro à la production, exploitation, sécurité, soutenance.
+>
 > Première fois ? Suivez le guide pas à pas : **[docs/04-premier-deploiement.md](docs/04-premier-deploiement.md)**
 > (compter environ 45 minutes, dont 15 d'attente).
 
@@ -86,6 +88,7 @@ make aide            # toutes les commandes
 | 8 | [Coûts](docs/08-couts.md) | Estimation, budget, économies, fin de projet |
 | 9 | [Dépannage](docs/09-depannage.md) | Symptômes, diagnostics et corrections |
 | 10 | [Outils de sécurité](docs/10-outils-securite.md) | Chaîne DevSecOps : CI, DAST, serveur, AWS ; traiter une vulnérabilité, réagir à une alerte |
+| 11 | [Sécurité : référence détaillée](docs/11-securite-reference.md) | Modèle de menaces STRIDE, fiche par outil, scénarios de démonstration, preuves, référentiels (OWASP, CIS, SLSA) |
 | — | [Décisions (ADR)](docs/adr/) | Décisions d'architecture de l'infrastructure |
 
 ## Structure du dépôt

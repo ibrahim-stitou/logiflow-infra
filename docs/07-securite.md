@@ -108,7 +108,9 @@ justifié, et sa porte CRITICAL reste active.
 ## 7.8 Outils de sécurité
 
 La chaîne DevSecOps complète (CI, DAST, serveur, AWS), le traitement des vulnérabilités et la
-réaction aux alertes sont décrits dans [Outils de sécurité](10-outils-securite.md).
+réaction aux alertes sont décrits dans [Outils de sécurité](10-outils-securite.md). Le modèle de
+menaces, les fiches détaillées et les scénarios de démonstration sont dans
+[Sécurité : référence](11-securite-reference.md).
 
 ## 7.9 Checklist avant une démonstration publique
 
