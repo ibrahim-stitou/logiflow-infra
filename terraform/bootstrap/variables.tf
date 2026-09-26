@@ -30,7 +30,7 @@ variable "enregistrements_dns" {
   description = <<-EOT
     Enregistrements DNS existants à recréer dans Route 53 (messagerie, vérifications…), sinon
     perdus lors de la délégation. nom : "" pour la racine, "mail" pour mail.<domaine>. Un seul
-    élément par couple (nom, type) ; les valeurs TXT s'écrivent entre guillemets échappés.
+    élément par couple (nom, type) ; valeurs TXT sans guillemets (ajoutés par le provider).
   EOT
   type = list(object({
     nom     = string
