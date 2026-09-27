@@ -79,8 +79,25 @@ Voir aussi l'[étape 7 du premier déploiement](04-premier-deploiement.md#étape
 | `EMAIL_ALERTES` | `vous@exemple.fr` |
 | `DOMAINE` | `votre-domaine.com` (vide : sslip.io) |
 
-3. **Protection de `main`** (recommandé) : *Settings → Branches → Add rule*, avec pull request
-   obligatoire et le workflow **Qualité** requis.
+3. **Protection de `main`**, active sur les 4 dépôts :
+   - pull request obligatoire, sans approbation exigée ;
+   - contrôles requis avant la fusion (tableau ci-dessous) ;
+   - force-push et suppression de `main` interdits ;
+   - les administrateurs peuvent passer outre en cas d'urgence.
+
+| Dépôt | Contrôles requis |
+|---|---|
+| logiflow-frontend | `CI` (lint, tests, build, image), `Secrets (Gitleaks)`, `SAST (CodeQL)`, `Dépendances (Trivy)` |
+| logiflow-backend | `build-and-test`, construction et analyse des images, `Secrets (Gitleaks)`, `SAST (CodeQL)`, `Dépendances (Trivy)` |
+| logiflow-ai-service | `test`, construction et analyse de l'image, `Secrets (Gitleaks)`, `SAST (CodeQL)`, `Dépendances (Trivy)` |
+| logiflow-infra | Terraform, Ansible, Stack, `Secrets (Gitleaks)`, `IaC (Trivy config)` |
+
+**Contribuer** : `git switch -c ma-branche`, puis commit et `git push -u origin ma-branche`. Ouvrez
+ensuite la PR (`gh pr create`). Le bouton *Merge* s'active quand tous les contrôles sont verts.
+
+> Si vous renommez un job de workflow, mettez à jour la liste des contrôles requis
+> (*Settings → Branches*). Sinon, les PR restent bloquées en attente d'un contrôle qui n'existe
+> plus.
 
 > **Valeurs Terraform en CI** : `terraform.tfvars` n'est pas versionné. En CI, Terraform utilise
 > donc les **valeurs par défaut** de `variables.tf`, plus `EMAIL_ALERTES`. Pour qu'un réglage
